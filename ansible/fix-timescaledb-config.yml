@@ -1,0 +1,48 @@
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  become: true
+  tasks:
+  - shell: "{{ playbook_dir }}/../venv/bin/docker-compose up db > /tmp/db.log 2>&1"
+    async: 300
+    poll: 0
+    register: db_log
+    args:
+      chdir: "{{ playbook_dir }}/../"
+
+
+  - slurp:
+      src: /tmp/db.log
+    register: db_log_content
+    retries: 10
+    delay: 30
+    until: "'LOG:  shutting down' in (db_log_content['content'] | b64decode)"
+
+  - command: docker volume inspect septic_monitor_pgdata
+    register: septic_monitor_pgdata_volume
+
+  - set_fact:
+      config_file: "{{ (septic_monitor_pgdata_volume.stdout | from_json)[0]['Mountpoint'] }}/postgresql.conf"
+
+  - debug:
+      msg: "config file: {{ config_file }}"
+
+  - wait_for:
+      path: "{{ config_file }}"
+
+  - pause:
+      seconds: 10
+
+  - lineinfile:
+      path: "{{ config_file }}"
+      line: "timescaledb.telemetry_level=off"
+      regexp: '.*timescaledb.telemetry_level.*'
+
+  - shell: "{{ playbook_dir }}/../venv/bin/docker-compose down"
+    args:
+      chdir: "{{ playbook_dir }}/../"
+
+
+  - file:
+      path: /tmp/db.log
+      state: absent
