@@ -18,9 +18,9 @@ help:
 
 init:
 	sudo apt update
-	sudo apt -y install i2c-tools python3-venv python3-smbus python3-testresources python3-numpy python3-scipy postgresql-client-common postgresql-client-*
+	sudo apt -y install i2c-tools python3-venv python3-smbus python3-testresources python3-numpy python3-scipy postgresql-client-common postgresql-client-* libpq-dev
 	python3 -m venv --clear --system-site-packages venv
-	./venv/bin/python -m pip install pip setuptools setuptools-rust wheel --upgrade --no-cache-dir
+	./venv/bin/python -m pip install pip "setuptools<71.0.0" setuptools-rust wheel --upgrade --no-cache-dir
 	./venv/bin/python -m pip install --no-cache-dir -e .
 	./venv/bin/python -m pip install --no-cache-dir ansible
 	echo -e '\nsource .env' >> venv/bin/activate
