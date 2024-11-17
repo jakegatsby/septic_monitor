@@ -32,7 +32,6 @@ docker-install:
 	curl -sSL https://get.docker.com | sudo sh
 	sudo usermod -aG docker ${USER}
 	sudo systemctl enable docker
-	./venv/bin/python -m pip install docker-compose
 	@echo =================================
 	@echo = Please reboot your machine!!! =
 	@echo =================================
@@ -54,7 +53,7 @@ clean-db:
 	@echo WARNING - this will delete database data
 	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} == y ]
 	sudo find septic_monitor -type f -name "*.pyc" -delete
-	./venv/bin/docker-compose down
+	docker compose down
 	docker container prune -f
 	docker volume rm septic_monitor_pgdata; echo pgdata deleted
 	sudo ./venv/bin/ansible-playbook ansible/fix-timescaledb-config.yml
@@ -63,7 +62,7 @@ clean-db:
 clean-docker:
 	@echo WARNING - this will delete database data
 	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} == y ]
-	./venv/bin/docker-compose down
+	docker compose down
 	docker container prune -f
 	docker image prune -a -f
 	docker volume prune -f
@@ -87,3 +86,9 @@ mock:
 cp-index:
 	aws s3 cp ./dashboard/index.html s3://septic-monitor/index.html
 	aws s3api put-object-acl --bucket septic-monitor --key index.html --acl public-read
+
+
+.PHONY: fix-iptables
+fix-iptables:
+	sudo update-alternatives --set iptables /usr/sbin/iptables-legacy
+	@echo reboot required
