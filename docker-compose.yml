@@ -28,6 +28,18 @@ services:
     restart: unless-stopped
     depends_on:
     - "grafana"
+  rest:
+    image: erniesprojects/sepmon_base
+    env_file: .env
+    volumes:
+    - "./septic_monitor:/opt/sm/septic_monitor"
+    - "/etc/timezone:/etc/timezone"
+    restart: unless-stopped
+    privileged: true
+    ports:
+    - "8080:80"
+    depends_on:
+    - "db"
   pump_v:
     image: erniesprojects/sepmon_base
     env_file: .env

@@ -4,11 +4,12 @@ from datetime import datetime
 import pytz
 from fastapi import FastAPI
 
-from septic_monitor import storage
+from septic_monitor import logs, storage
+
+logging.basicConfig(level=logging.INFO, format=logs.LOG_FMT)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
-
-# logging.basicConfig(level=logging.INFO)
 
 
 @app.get("/api/status/")

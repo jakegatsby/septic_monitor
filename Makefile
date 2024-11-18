@@ -59,6 +59,7 @@ clean-db:
 	sudo ./venv/bin/ansible-playbook ansible/fix-timescaledb-config.yml
 
 
+.PHONY: clean-docker
 clean-docker:
 	@echo WARNING - this will delete database data
 	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} == y ]
@@ -68,11 +69,12 @@ clean-docker:
 	docker volume prune -f
 	docker system prune -a -f
 
-
+.PHONY: build-base
 build-base:
 	docker build -t erniesprojects/sepmon_base -f Dockerfile.base .
 
 
+.PHONY: push-base
 push-base:
 	docker push erniesprojects/sepmon_base
 
@@ -92,3 +94,5 @@ cp-index:
 fix-iptables:
 	sudo update-alternatives --set iptables /usr/sbin/iptables-legacy
 	@echo reboot required
+	
+
