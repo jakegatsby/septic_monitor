@@ -3,6 +3,7 @@ from datetime import datetime
 
 import pytz
 from fastapi import FastAPI
+from pydantic import BaseModel
 
 from septic_monitor import logs, storage
 
@@ -10,6 +11,10 @@ logging.basicConfig(level=logging.INFO, format=logs.LOG_FMT)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+
+class RemoteTemperature(BaseModel):
+    temperature: float
 
 
 @app.get("/api/status/")
@@ -43,4 +48,8 @@ async def get_pump_amperage_duration(duration):
     return [{"x": l.timestamp, "y": l.value} for l in amperages]
 
 
+@app.post("/api/remote/temperature/")
+async def post_remote_temperature(temperature: RemoteTemperature):
+    logger.info(temperature)
+    return temperature
 

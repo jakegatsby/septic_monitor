@@ -28,8 +28,9 @@ services:
     restart: unless-stopped
     depends_on:
     - "grafana"
-  rest:
+  api:
     image: erniesprojects/sepmon_base
+    command: ["uvicorn", "septic_monitor.api:app", "--host", "0.0.0.0", "--port", "80", "--log-level", "debug"]
     env_file: .env
     volumes:
     - "./septic_monitor:/opt/sm/septic_monitor"
@@ -42,24 +43,24 @@ services:
     - "db"
   pump_v:
     image: erniesprojects/sepmon_base
+    command: ["python", "/opt/sm/septic_monitor/pump_v.py"]    
     env_file: .env
     volumes:
     - "./septic_monitor:/opt/sm/septic_monitor"
     - "/etc/timezone:/etc/timezone"
     restart: unless-stopped
     privileged: true
-    command: ["python", "/opt/sm/septic_monitor/pump_v.py"]
     depends_on:
     - "db"
   pump_i:
     image: erniesprojects/sepmon_base
+    command: ["python", "/opt/sm/septic_monitor/pump_i.py"]    
     volumes:
     - "./septic_monitor:/opt/sm/septic_monitor"
     - "/etc/timezone:/etc/timezone"
     env_file: .env
     restart: unless-stopped
     privileged: true
-    command: ["python", "/opt/sm/septic_monitor/pump_i.py"]
     depends_on:
     - "db"
   ultrasonic:
@@ -75,17 +76,15 @@ services:
     - "db"
   host:
     image: erniesprojects/sepmon_base
+    command: ["python", "/opt/sm/septic_monitor/host.py"]    
     volumes:
     - "./septic_monitor:/opt/sm/septic_monitor"
     - "/etc/timezone:/etc/timezone"
     env_file: .env
     restart: unless-stopped
     privileged: true
-    command: ["python", "/opt/sm/septic_monitor/host.py"]
     depends_on:
     - "db"
-
-
 
 volumes:
   pgdata:

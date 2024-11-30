@@ -94,5 +94,9 @@ cp-index:
 fix-iptables:
 	sudo update-alternatives --set iptables /usr/sbin/iptables-legacy
 	@echo reboot required
-	
 
+
+
+.PHONY: thonny
+thonny:
+	if ! which pdipx; then sudo apt update && sudo apt-get -y install pipx && pipx ensurepath && pipx install thonny; fi
