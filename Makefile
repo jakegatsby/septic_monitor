@@ -106,3 +106,4 @@ fix-iptables:
 .PHONY: thonny
 thonny:
 	if ! which pipx; then sudo apt update && sudo apt-get -y install pipx && pipx ensurepath && pipx install thonny; fi
+	pipx upgrade thonny

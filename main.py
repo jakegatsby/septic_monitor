@@ -41,20 +41,21 @@ def read_temperature():
     data = {
         "temperature": temperature,
     }
+    post_url = f"http://{API_IP}:{API_PORT}/api/remote/temperature/"
     try:
         r = requests.post(
-            url=f"http://{API_IP}:{API_PORT}/api/remote/temperature/", json=data
+            url=post_url, json=data
         )
         r.close()
         print(f"[INFO] PICO temperature of {temperature} sent to {API_IP}")
+        blink()
     except Exception as e:
-        print(f"[ERROR] {str(e)}")
+        print(f"[ERROR] POST {post_url} failed: {str(e)}")
 
 
 def main():
     network_connect()
-    while True:
-        blink()
+    while True:        
         read_temperature()
         time.sleep(1)
 
