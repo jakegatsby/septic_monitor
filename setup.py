@@ -4,7 +4,6 @@ install_requires = [
     "adafruit-circuitpython-ads1x15",
     "attrs",
     "boto3",
-    "docker-compose",
     "fastapi",
     "psycopg2",
     "pyserial",
