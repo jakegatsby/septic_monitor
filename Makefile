@@ -1,10 +1,9 @@
 SHELL:=/bin/bash
 
 
-.PHONY: init docker-install docker-config fix-seccomp2 mock clean build-base push-base
-
 help:
 	@echo init
+	@echo thonny
 	@echo docker-install
 	@echo docker-config
 	@echo fix-seccomp2
@@ -16,6 +15,7 @@ help:
 	@echo cp-index
 
 
+.PHONY: init
 init:
 	sudo apt update
 	sudo apt -y install i2c-tools python3-venv python3-smbus python3-testresources python3-numpy python3-scipy postgresql-client-common postgresql-client-* libpq-dev
@@ -26,29 +26,34 @@ init:
 	echo -e '\nsource .env' >> venv/bin/activate
 	test -f .env || cp .env.sample .env
 
+
+.PHONY: docker-install
 docker-install:
 	sudo apt update
 	sudo apt-get -y install apt-transport-https ca-certificates curl gnupg lsb-release apache2-utils
 	curl -sSL https://get.docker.com | sudo sh
 	sudo usermod -aG docker ${USER}
 	sudo systemctl enable docker
-	@echo =================================
-	@echo = Please reboot your machine!!! =
-	@echo =================================
+	@echo ==============================
+	@echo = Please reboot your machine =
+	@echo ==============================
 
 
+.PHONY: docker-config
 docker-config:
 	sudo mkdir /etc/docker -p
 	sudo cp daemon.json /etc/docker/daemon.json
 	sudo systemctl restart docker
 
 
+.PHONY: fix-seccomp2
 fix-seccomp2:
 	curl http://ftp.us.debian.org/debian/pool/main/libs/libseccomp/libseccomp2_2.5.1-1_armhf.deb --output libseccomp2_2.5.1-1_armhf.deb
 	sudo dpkg -i libseccomp2_2.5.1-1_armhf.deb
 	rm libseccomp2_2.5.1-1_armhf.deb -f
 
 
+.PHONY: clean-db
 clean-db:
 	@echo WARNING - this will delete database data
 	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} == y ]
@@ -69,6 +74,7 @@ clean-docker:
 	docker volume prune -f
 	docker system prune -a -f
 
+
 .PHONY: build-base
 build-base:
 	docker build -t erniesprojects/sepmon_base -f Dockerfile.base .
@@ -79,8 +85,9 @@ push-base:
 	docker push erniesprojects/sepmon_base
 
 
+.PHONY: mock
 mock:
-#	sudo apt -y install python3-numpy python3-scipy
+	#	sudo apt -y install python3-numpy python3-scipy
 	./venv/bin/python septic_monitor/mock.py
 
 
@@ -96,7 +103,6 @@ fix-iptables:
 	@echo reboot required
 
 
-
 .PHONY: thonny
 thonny:
-	if ! which pdipx; then sudo apt update && sudo apt-get -y install pipx && pipx ensurepath && pipx install thonny; fi
+	if ! which pipx; then sudo apt update && sudo apt-get -y install pipx && pipx ensurepath && pipx install thonny; fi

@@ -4,26 +4,11 @@
 
 
 ```
-git clone git@github.com:ErniesProjects/septic_monitor.git    # clone the git repo
+cd ~
+git clone git@github.com:jakegatsby/septic_monitor.git        # clone the git repo
 cd septic_monitor                                             # we want to be in the root of the repo, where this README.md is
 make init                                                     # only do this once!!!
 ```
-
-Cloning the repo and creating the venv only need to be done once.  Now, every time you want to work on the project, simply cd into the repository directory (with the README.md file) and activate the venv:
-
-```
-cd septic_monitor                # if you're not already in this directory
-source venv/bin/activate
-```
-
-You'll see a `(venv)` to the left of your prompt in the terminal, to let you know the venv is active.
-
-If you modify `setup.py` and add new dependencies, they can be installed using pip.  Make sure you always do this with the venv activated!
-
-```
-python3 -m pip install -e .
-```
-
 
 ### Docker
 
@@ -31,6 +16,7 @@ Do the following *once* to setup Docker
 
 ```
 make docker-install
+make docker-config
 htpasswd -c web/.htpasswd ernie
 ```
 
@@ -41,7 +27,7 @@ NOTE: If when building images locally you see apt errors about invalid signature
 You can bring up the docker services with:
 
 ```
-docker-compose up -d
+docker compose up -d
 ```
 
 Check that the containers are running with:
@@ -53,19 +39,19 @@ docker ps
 You can bring down the docker containers with:
 
 ```
-docker-compose down
+docker compose down
 ```
 
 Pull the latest versions of images with:
 
 ```
-docker-compose pull
+docker compose pull
 ```
 
 If you also want to delete the database files (after bringing the containers down) simply run:
 
 ```
-make clean
+make clean-db
 ```
 
 
