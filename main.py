@@ -16,6 +16,12 @@ API_IP = CONFIG["api"]["ip"]
 API_PORT = CONFIG["api"]["port"]
 
 
+def error_blink():
+    for _ in range(20):
+        blink()
+        time.sleep(0.08)
+
+
 def blink():
     if LED.value() == 0:
         LED.on()
@@ -29,6 +35,7 @@ def network_connect():
     wlan.connect(CONFIG["network"]["ssid"], CONFIG["network"]["password"])
     while wlan.isconnected() == False:
         print("Waiting for connection...")
+        error_blink()
         time.sleep(1)
     ip = wlan.ifconfig()[0]
     print(f"Connected on {ip}")
@@ -51,9 +58,10 @@ def read_temperature():
         blink()
     except Exception as e:
         print(f"[ERROR] POST {post_url} failed: {str(e)}")
+        error_blink()
 
 
-def main():
+def main():    
     network_connect()
     while True:        
         read_temperature()
