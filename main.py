@@ -47,7 +47,7 @@ def read_temperature():
             url=post_url, json=data
         )
         r.close()
-        print(f"[INFO] PICO temperature of {temperature} sent to {API_IP}")
+        print(f"[INFO] PICO temperature of {temperature} sent to {API_IP}:{API_PORT}")
         blink()
     except Exception as e:
         print(f"[ERROR] POST {post_url} failed: {str(e)}")
