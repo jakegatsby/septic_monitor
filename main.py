@@ -42,6 +42,7 @@ def network_connect():
 
 
 def read_temperature():
+    # FIXME retry wifi connect
     adc_value = TEMP_SENSOR.read_u16()
     volt = (3.3 / 65535) * adc_value
     temperature = round(27 - (volt - 0.706) / 0.001721, 1)
