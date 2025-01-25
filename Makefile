@@ -105,14 +105,12 @@ fix-iptables:
 
 .PHONY: thonny
 thonny:
-	if ! which pipx; then sudo apt update && sudo apt-get -y install pipx && pipx ensurepath && pipx install thonny; fi
-	pipx upgrade thonny
-
+	if ! which pipx; then sudo apt update && sudo apt-get -y install pipx && pipx ensurepath; fi
+	pipx upgrade thonny || pipx install thonny
 
 .PHONY: support
 support:
 	ssh ubuntu@<ec2-ip> -R <ec2-local-listen-port>:localhost:22
-
 
 
 .PHONY: config-check

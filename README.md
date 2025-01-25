@@ -76,6 +76,19 @@ If you want to work on your project with Thonny, simply launch it from the menu 
 
 
 
+### Flash Pico Firmware
+
+
+- launch thonny without pico plugged in
+- ensure thonny is in regular view (switch on top right if not)
+- attach USB cable to Pi (no pico attached yet)
+- holding down white BOOTSEL button, attach pico to USB cable
+- in thonny, lower right, select "Install MicroPython"
+- select the target volume with RPI-RP2 in the name
+- in variant, select Pico W or Pico 2 W depending on which board you have
+- click Install and wait to for it to say done, then Close
+
+
 ### Replication
 
 Local:
