@@ -29,20 +29,20 @@ def blink():
         LED.off()
 
 
-def network_connect():
+def network_connect(wlan=None):
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     wlan.connect(CONFIG["network"]["ssid"], CONFIG["network"]["password"])
     while wlan.isconnected() == False:
-        print("Waiting for connection...")
+        print("Waiting for WIFI connection...")
         error_blink()
         time.sleep(1)
     ip = wlan.ifconfig()[0]
-    print(f"Connected on {ip}")
+    print(f"WIFI connected on {ip}")
+    return wlan
 
 
 def read_temperature():
-    # FIXME retry wifi connect
     adc_value = TEMP_SENSOR.read_u16()
     volt = (3.3 / 65535) * adc_value
     temperature = round(27 - (volt - 0.706) / 0.001721, 1)
@@ -55,19 +55,30 @@ def read_temperature():
             url=post_url, json=data
         )
         r.close()
-        print(f"[INFO] PICO temperature of {temperature} sent to {API_IP}:{API_PORT}")
-        blink()
+        print(f"[INFO] PICO temperature of {temperature} sent to {API_IP}:{API_PORT}")        
     except Exception as e:
-        print(f"[ERROR] POST {post_url} failed: {str(e)}")
-        error_blink()
+        print(f"[ERROR] POST {post_url} failed")
+        raise
 
 
-def main():    
-    network_connect()
+def main():
+    wlan = network_connect()
+    failed = 0
     while True:        
-        read_temperature()
-        time.sleep(1)
+        try:
+            read_temperature()
+            blink()
+            failed = 0
+            time.sleep(1)
+        except Exception as e:            
+            error_blink()
+            failed += 1
+            if failed % 10 == 0:
+                print(f"[ERROR] {failed}/1000 failed HTTP posts before restarting networking")
+            if failed == 1000:
+                network_connect(wlan)
+                failed = 0
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":    
     main()
