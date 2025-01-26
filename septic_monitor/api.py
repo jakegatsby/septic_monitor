@@ -5,12 +5,16 @@ import pytz
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from septic_monitor import logs, storage
-
-
+from septic_monitor import logs
+    
 app = FastAPI()
 
 logging.basicConfig(level=logging.INFO)
+
+try:
+    from septic_monitor import storage
+except:
+    logging.error("Import storage failed")
 
 class RemoteTemperature(BaseModel):
     temperature: float
