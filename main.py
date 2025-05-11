@@ -1,9 +1,18 @@
+import asyncio
 import json
 import time
 
 import network
-import requests
 from machine import Pin
+
+from microdot import Microdot
+
+app = Microdot()
+
+TEMPLATE = """# HELP pico_temperature Pico Temp in C
+# TYPE pico_temperature gauge
+pico_temperature {}
+"""
 
 LED = Pin("LED", machine.Pin.OUT)
 TEMP_PIN = 4
@@ -14,7 +23,6 @@ with open("config") as f:
 
 API_IP = CONFIG["api"]["ip"]
 API_PORT = CONFIG["api"]["port"]
-
 
 def error_blink():
     for _ in range(20):
@@ -29,56 +37,41 @@ def blink():
         LED.off()
 
 
-def network_connect(wlan=None):
+def network_connect():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     wlan.connect(CONFIG["network"]["ssid"], CONFIG["network"]["password"])
     while wlan.isconnected() == False:
-        print("Waiting for WIFI connection...")
+        print("Waiting for connection...")
         error_blink()
         time.sleep(1)
-    ip = wlan.ifconfig()[0]
-    print(f"WIFI connected on {ip}")
+    print("connected to wifi:")
+    ifconfig = wlan.ifconfig()
+    wlan.ifconfig(("192.168.2.99", ifconfig[1], ifconfig[2], ifconfig[3]))
+    print("IP set to 192.168.2.99")  # FIXME, get this from config
     return wlan
 
 
-def read_temperature():
+def get_temperature():
     adc_value = TEMP_SENSOR.read_u16()
     volt = (3.3 / 65535) * adc_value
-    temperature = round(27 - (volt - 0.706) / 0.001721, 1)
-    data = {
-        "temperature": temperature,
-    }
-    post_url = f"http://{API_IP}:{API_PORT}/api/remote/temperature/"
-    try:
-        r = requests.post(
-            url=post_url, json=data
-        )
-        r.close()
-        print(f"[INFO] PICO temperature of {temperature} sent to {API_IP}:{API_PORT}")        
-    except Exception as e:
-        print(f"[ERROR] POST {post_url} failed")
-        raise
+    return round(27 - (volt - 0.706) / 0.001721, 1)
+    
+async def check_networking(wlan):
+    while True:
+        connected = wlan.isconnected()
+        print(f"{time.time()} Network Check: {wlan}")
+        if not connected:
+            wlan = network_connect()
+        await asyncio.sleep(10)
 
+@app.route('/metrics')
+async def metrics(request):
+    t = get_temperature()
+    print(f"{time.time()} Temperature: {t}")
+    return TEMPLATE.format(t)
 
-def main():
+if __name__ == "__main__":
     wlan = network_connect()
-    failed = 0
-    while True:        
-        try:
-            read_temperature()
-            blink()
-            failed = 0
-            time.sleep(1)
-        except Exception as e:            
-            error_blink()
-            failed += 1
-            if failed % 10 == 0:
-                print(f"[ERROR] {failed}/1000 failed HTTP posts before restarting networking")
-            if failed == 1000:
-                network_connect(wlan)
-                failed = 0
-
-
-if __name__ == "__main__":    
-    main()
+    asyncio.create_task(check_networking(wlan))
+    app.run(port=9090)
