@@ -1,0 +1,11 @@
+adafruit-circuitpython-ads1x15
+attrs
+boto3
+fastapi
+prometheus-client
+pyserial
+pytz
+RPi.GPIO
+RPLCD
+smbus
+uvicorn

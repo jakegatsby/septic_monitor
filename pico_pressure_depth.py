@@ -9,20 +9,19 @@ from microdot import Microdot
 
 app = Microdot()
 
-TEMPLATE = """# HELP pico_temperature Pico Temp in C
-# TYPE pico_temperature gauge
-pico_temperature {}
+METRICS_TEMPLATE = """# HELP sepmon_pressure_depth Pico Temp in C
+# TYPE sepmon_pressure_depth gauge
+sepmon_pressure_depth {temperature}
 """
 
+METRICS_PORT = 8080
 LED = Pin("LED", machine.Pin.OUT)
 TEMP_PIN = 4
 TEMP_SENSOR = machine.ADC(TEMP_PIN)
 
 with open("config") as f:
     CONFIG = json.load(f)
-
-API_IP = CONFIG["api"]["ip"]
-API_PORT = CONFIG["api"]["port"]
+    print(CONFIG)
 
 def error_blink():
     for _ in range(20):
@@ -47,8 +46,9 @@ def network_connect():
         time.sleep(1)
     print("connected to wifi:")
     ifconfig = wlan.ifconfig()
-    wlan.ifconfig(("192.168.2.99", ifconfig[1], ifconfig[2], ifconfig[3]))
-    print("IP set to 192.168.2.99")  # FIXME, get this from config
+    ip = CONFIG["network"]["ip"]
+    wlan.ifconfig((ip, ifconfig[1], ifconfig[2], ifconfig[3]))
+    print(f"IP set to {ip}")
     return wlan
 
 
@@ -56,22 +56,31 @@ def get_temperature():
     adc_value = TEMP_SENSOR.read_u16()
     volt = (3.3 / 65535) * adc_value
     return round(27 - (volt - 0.706) / 0.001721, 1)
-    
+
 async def check_networking(wlan):
     while True:
         connected = wlan.isconnected()
         print(f"{time.time()} Network Check: {wlan}")
         if not connected:
             wlan = network_connect()
-        await asyncio.sleep(10)
+        await asyncio.sleep(300)
+
+async def ok_blink():
+    while True:
+        blink()
+        await asyncio.sleep(2)
 
 @app.route('/metrics')
 async def metrics(request):
     t = get_temperature()
     print(f"{time.time()} Temperature: {t}")
-    return TEMPLATE.format(t)
+    return METRICS_TEMPLATE.format(temperature=t)
+
+#read from A2D
 
 if __name__ == "__main__":
     wlan = network_connect()
     asyncio.create_task(check_networking(wlan))
-    app.run(port=9090)
+    asyncio.create_task(ok_blink())
+    print(f"Serving metrics on port {METRICS_PORT}")
+    app.run(port=METRICS_PORT)

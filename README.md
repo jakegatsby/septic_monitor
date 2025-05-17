@@ -108,3 +108,14 @@ GatewayPorts yes
 replicaof 172.18.0.1 9999
 replica-announce-ip 192.168.2.12
 ```
+
+
+### Grafana
+
+#### Prometheus Data Source
+
+- browse to http://localhost:3000/connections/datasources and add new data source of type Prometheus
+- enter http://prometheus:9090 as the server URL
+- scroll to the bottom and "Save & test"
+
+

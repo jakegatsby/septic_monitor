@@ -53,8 +53,8 @@ fix-seccomp2:
 	rm libseccomp2_2.5.1-1_armhf.deb -f
 
 
-.PHONY: clean-db
-clean-db:
+.PHONY: db-clean
+db-clean:
 	@echo WARNING - this will delete database data
 	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} == y ]
 	sudo find septic_monitor -type f -name "*.pyc" -delete
@@ -64,8 +64,8 @@ clean-db:
 	sudo ./venv/bin/ansible-playbook ansible/fix-timescaledb-config.yml
 
 
-.PHONY: clean-docker
-clean-docker:
+.PHONY: docker-clean
+docker-clean:
 	@echo WARNING - this will delete database data
 	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} == y ]
 	docker compose down
@@ -75,15 +75,14 @@ clean-docker:
 	docker system prune -a -f
 
 
-.PHONY: build-base
-build-base:
-	docker build -t erniesprojects/sepmon_base -f Dockerfile.base .
+.PHONY: docker-build
+docker-build:
+	docker build -t erniesprojects/sepmon .
 
 
-.PHONY: push-base
-push-base:
-	docker push erniesprojects/sepmon_base
-
+.PHONY: docker-push
+docker-push:
+	docker push erniesprojects/sepmon
 
 .PHONY: mock
 mock:
@@ -108,9 +107,10 @@ thonny:
 	if ! which pipx; then sudo apt update && sudo apt-get -y install pipx && pipx ensurepath; fi
 	pipx upgrade thonny || pipx install thonny
 
+
 .PHONY: support
 support:
-	ssh ubuntu@<ec2-ip> -R <ec2-local-listen-port>:localhost:22
+	ssh ubuntu@<ec2-ip> -R 2222:localhost:22
 
 
 .PHONY: config-check

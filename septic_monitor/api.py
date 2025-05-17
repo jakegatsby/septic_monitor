@@ -1,58 +1,36 @@
 import logging
+import random
+import time
 from datetime import datetime
 
-import pytz
-from fastapi import FastAPI
-from pydantic import BaseModel
+
+from prometheus_client import start_http_server, CollectorRegistry, Gauge, Summary
 
 from septic_monitor import logs
     
-app = FastAPI()
 
 logging.basicConfig(level=logging.INFO)
 
-try:
-    from septic_monitor import storage
-except:
-    logging.error("Import storage failed")
+pico_temperature_gauge = Gauge("pico_temperature_gauge", "Pico Temperature")
 
-class RemoteTemperature(BaseModel):
-    temperature: float
+GAUGES = set()
 
-
-@app.get("/api/status/")
-async def lastupdate():    
-    return storage.status()
-        
-
-@app.get("/api/tank/level/")
-async def get_tank_level():
-    return storage.get_tank_level()
+def get_gauge(name):
+    return [g for g in GAUGES if str(g) == f"gauge:{name}"][0]
 
 
-@app.get("/api/tank/level/{duration}/")
-async def get_tank_level_duration(duration):
-    levels = storage.get_tank_level(duration=duration)
-    if not levels:
-        return []
-    return [{"x": l.timestamp, "y": l.value} for l in levels]
-
-
-@app.get("/api/pump/amperage/")
-async def get_pump_amperage():
-    return storage.get_pump_amperage()
-
-
-@app.get("/api/pump/amperage/{duration}/")
-async def get_pump_amperage_duration(duration):
-    amperages = storage.get_pump_amperage(duration=duration)
-    if not amperages:
-        return []
-    return [{"x": l.timestamp, "y": l.value} for l in amperages]
-
-
-@app.post("/api/remote/temperature/")
-async def post_remote_temperature(temperature: RemoteTemperature):
-    logging.info(temperature)
-    return temperature
-
+start_http_server(8000)
+while True:
+    pico_temperature_gauge.set(20)
+    for i in range(50):
+        #v = random.choice([0,0,0,0,0,0,0,0,0,0,1,1])
+        v = random.choice([0])
+        #v = random.choice([1])
+        g_name = f"cm_networking_gauge_{i}"
+        try:
+            g = Gauge(g_name, f"CM Networking ({i})")
+            GAUGES.add(g)
+        except:
+            g = get_gauge(g_name)
+        g.set(v)
+    time.sleep(10)
