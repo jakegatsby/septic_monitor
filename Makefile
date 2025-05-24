@@ -105,12 +105,14 @@ fix-iptables:
 .PHONY: thonny
 thonny:
 	if ! which pipx; then sudo apt update && sudo apt-get -y install pipx && pipx ensurepath; fi
+	sudo apt-get install python3-tk
 	pipx upgrade thonny || pipx install thonny
 
 
 .PHONY: support
 support:
-	ssh ubuntu@<ec2-ip> -R 2222:localhost:22
+	# FROM Pi:  ssh ubuntu@<ec2-ip> -R 2222:localhost:22
+	# FROM EC2: use sepsup keypair
 
 
 .PHONY: config-check
