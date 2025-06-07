@@ -3,25 +3,30 @@ import json
 import time
 
 import network
-from machine import Pin
+import machine
 
 from microdot import Microdot
 
 app = Microdot()
 
-METRICS_TEMPLATE = """# HELP sepmon_pressure_depth Pico Temp in C
+METRICS_TEMPLATE = """# HELP sepmon_pressure_depth Depth measured by pressure sensor
 # TYPE sepmon_pressure_depth gauge
-sepmon_pressure_depth {temperature}
+sepmon_pressure_depth {depth}
+
+# HELP sepmon_pressure_sensor_temperature Pressure sensor temperature
+# TYPE sepmon_pressure_sensor_temperature gauge
+sepmon_pressure_sensor_temperature {temperature}
 """
 
 METRICS_PORT = 8080
-LED = Pin("LED", machine.Pin.OUT)
+LED = machine.Pin("LED", machine.Pin.OUT)
 TEMP_PIN = 4
 TEMP_SENSOR = machine.ADC(TEMP_PIN)
+PRESSURE_PIN = 28
+PRESSURE_SENSOR = machine.ADC(PRESSURE_PIN)
 
 with open("config") as f:
-    CONFIG = json.load(f)
-    print(CONFIG)
+    CONFIG = json.load(f)    
 
 def error_blink():
     for _ in range(20):
@@ -41,7 +46,7 @@ def network_connect():
     wlan.active(True)
     wlan.connect(CONFIG["network"]["ssid"], CONFIG["network"]["password"])
     while wlan.isconnected() == False:
-        print("Waiting for connection...")
+        print("Connecting to WLAN")
         error_blink()
         time.sleep(1)
     print("connected to wifi:")
@@ -57,6 +62,12 @@ def get_temperature():
     volt = (3.3 / 65535) * adc_value
     return round(27 - (volt - 0.706) / 0.001721, 1)
 
+
+def get_pressure_depth():
+    adc = PRESSURE_SENSOR.read_u16()  # this is 0-65535 (12bit converted to 16bit)
+    return round(adc)
+    
+
 async def check_networking(wlan):
     while True:
         connected = wlan.isconnected()
@@ -70,17 +81,17 @@ async def ok_blink():
         blink()
         await asyncio.sleep(2)
 
+
 @app.route('/metrics')
 async def metrics(request):
-    t = get_temperature()
-    print(f"{time.time()} Temperature: {t}")
-    return METRICS_TEMPLATE.format(temperature=t)
+    t = get_temperature()    
+    d = get_pressure_depth()
+    return METRICS_TEMPLATE.format(depth=d, temperature=t)
 
-#read from A2D
 
 if __name__ == "__main__":
-    wlan = network_connect()
+    wlan = network_connect()    
     asyncio.create_task(check_networking(wlan))
     asyncio.create_task(ok_blink())
-    print(f"Serving metrics on port {METRICS_PORT}")
+    print(f"Serving metrics at http://{CONFIG["network"]["ip"]}:{METRICS_PORT}/metrics")
     app.run(port=METRICS_PORT)

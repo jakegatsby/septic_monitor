@@ -84,7 +84,8 @@ If you want to work on your project with Thonny, simply launch it from the menu 
 - attach USB cable to Pi (no pico attached yet)
 - holding down white BOOTSEL button, attach pico to USB cable
 - in thonny, lower right, select "Install MicroPython"
-- select the target volume with RPI-RP2 in the name
+- select the target volume with RP2350 in the name
+- select the RP2 family
 - in variant, select Pico W or Pico 2 W depending on which board you have
 - click Install and wait to for it to say done, then Close
 

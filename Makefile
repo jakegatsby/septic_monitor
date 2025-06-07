@@ -13,7 +13,8 @@ help:
 	@echo push-base
 	@echo mock
 	@echo cp-index
-
+	@echo rshell
+	@echo flash-pico-pressure-depth
 
 .PHONY: init
 init:
@@ -102,9 +103,12 @@ fix-iptables:
 	@echo reboot required
 
 
-.PHONY: thonny
-thonny:
+.PHONY: pipx
+pipx:
 	if ! which pipx; then sudo apt update && sudo apt-get -y install pipx && pipx ensurepath; fi
+
+.PHONY: thonny
+thonny: pipx
 	sudo apt-get install python3-tk
 	pipx upgrade thonny || pipx install thonny
 
@@ -119,3 +123,25 @@ support:
 config-check:
 	which jq || sudo apt install jq
 	cat config | jq .
+
+
+.PHONY: rshell
+rshell: pipx
+	pipx upgrade rshell || pipx install rshell
+
+
+.PHONY: flash-pico-pressure-depth-microdot
+flash-pico-pressure-depth-microdot: rshell
+	rshell cp ./pico_pressure_depth/microdot.py /pyboard/
+	rshell "repl ~ import machine ~ machine.soft_reset() ~"
+
+
+.PHONY: flash-pico-pressure-depth
+flash-pico-pressure-depth: rshell
+	rshell cp ./pico_pressure_depth/{main.py,config} /pyboard/
+	rshell "repl ~ import machine ~ machine.soft_reset() ~"
+
+
+.PHONY: get-pico-pressure-depth
+get-pico-pressure-depth:
+	@curl http://$$(jq -r .network.ip pico_pressure_depth/config):8080/metrics
