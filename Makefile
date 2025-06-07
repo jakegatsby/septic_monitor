@@ -1,5 +1,6 @@
 SHELL:=/bin/bash
 
+PICO_PRESSURE_IP=$(shell jq -r .network.ip pico_pressure_depth/config)
 
 help:
 	@echo init
@@ -118,11 +119,15 @@ support:
 	# FROM Pi:  ssh ubuntu@<ec2-ip> -R 2222:localhost:22
 	# FROM EC2: use sepsup keypair
 
+.PHONY: jinja-cli
+jinja-cli: pipx
+	pipx upgrade jinja-cli || pipx install jinja-cli
 
-.PHONY: config-check
-config-check:
-	which jq || sudo apt install jq
-	cat config | jq .
+
+.PHONY: docker-up
+docker-up: jinja-cli
+	SEPMON_PICO_PRESSURE_IP=$(PICO_PRESSURE_IP) \
+	  jinja -X 'SEPMON*' prometheus.yml.j2 > prometheus.yml
 
 
 .PHONY: rshell
@@ -144,4 +149,4 @@ flash-pico-pressure-depth: rshell
 
 .PHONY: get-pico-pressure-depth
 get-pico-pressure-depth:
-	@curl http://$$(jq -r .network.ip pico_pressure_depth/config):8080/metrics
+	@curl http://$(PICO_PRESSURE_IP):8080/metrics

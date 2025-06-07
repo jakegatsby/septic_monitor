@@ -9,7 +9,7 @@ from microdot import Microdot
 
 app = Microdot()
 
-METRICS_TEMPLATE = """# HELP sepmon_pressure_depth Depth measured by pressure sensor
+METRICS_TEMPLATE = """# HELP sepmon_pressure_depth Pressure sensor depth reading
 # TYPE sepmon_pressure_depth gauge
 sepmon_pressure_depth {depth}
 
