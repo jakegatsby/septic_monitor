@@ -26,7 +26,8 @@ PRESSURE_PIN = 28
 PRESSURE_SENSOR = machine.ADC(PRESSURE_PIN)
 
 with open("config") as f:
-    CONFIG = json.load(f)    
+    CONFIG = json.load(f)
+
 
 def error_blink():
     for _ in range(20):
@@ -45,7 +46,7 @@ def network_connect():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     wlan.connect(CONFIG["network"]["ssid"], CONFIG["network"]["password"])
-    while wlan.isconnected() == False:
+    while not wlan.isconnected():
         print("Connecting to WLAN")
         error_blink()
         time.sleep(1)
@@ -66,7 +67,7 @@ def get_temperature():
 def get_pressure_depth():
     adc = PRESSURE_SENSOR.read_u16()  # this is 0-65535 (12bit converted to 16bit)
     return round(adc)
-    
+
 
 async def check_networking(wlan):
     while True:
@@ -76,22 +77,23 @@ async def check_networking(wlan):
             wlan = network_connect()
         await asyncio.sleep(300)
 
+
 async def ok_blink():
     while True:
         blink()
         await asyncio.sleep(2)
 
 
-@app.route('/metrics')
+@app.route("/metrics")
 async def metrics(request):
-    t = get_temperature()    
+    t = get_temperature()
     d = get_pressure_depth()
     return METRICS_TEMPLATE.format(depth=d, temperature=t)
 
 
 if __name__ == "__main__":
-    wlan = network_connect()    
+    wlan = network_connect()
     asyncio.create_task(check_networking(wlan))
     asyncio.create_task(ok_blink())
-    print(f"Serving metrics at http://{CONFIG["network"]["ip"]}:{METRICS_PORT}/metrics")
+    print(f"Serving metrics at http://{CONFIG['network']['ip']}:{METRICS_PORT}/metrics")
     app.run(port=METRICS_PORT)
