@@ -139,7 +139,7 @@ rshell: pipx
 
 
 .PHONY: flash-pico-pressure-depth-microdot
-flash-pico-pressure-depth-microdot: rshell
+flash-pico-pressure-depth-microdot:
 	rshell cp ./pico_pressure_depth/microdot.py /pyboard/
 	rshell "repl ~ import machine ~ machine.soft_reset() ~"
 
