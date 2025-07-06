@@ -22,7 +22,7 @@ METRICS_PORT = 8080
 LED = machine.Pin("LED", machine.Pin.OUT)
 TEMP_PIN = 4
 TEMP_SENSOR = machine.ADC(TEMP_PIN)
-PRESSURE_PIN = 28
+PRESSURE_PIN = 34
 PRESSURE_SENSOR = machine.ADC(PRESSURE_PIN)
 
 with open("config") as f:
