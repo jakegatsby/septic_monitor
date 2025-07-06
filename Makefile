@@ -131,7 +131,8 @@ docker-up: jinja-cli
 	SEPMON_PICO_PRESSURE_IP=$(PICO_PRESSURE_IP) \
 	  jinja -X 'SEPMON*' prometheus.yml.j2 > prometheus.yml
 
-
+# pipx fails to install rshell on the older rpi for
+# some reason
 .PHONY: rshell
 rshell: pipx
 	pipx upgrade rshell || pipx install rshell
@@ -144,7 +145,7 @@ flash-pico-pressure-depth-microdot: rshell
 
 
 .PHONY: flash-pico-pressure-depth
-flash-pico-pressure-depth: rshell
+flash-pico-pressure-depth:
 	rshell cp ./pico_pressure_depth/{main.py,config} /pyboard/
 	rshell "repl ~ import machine ~ machine.soft_reset() ~"
 
