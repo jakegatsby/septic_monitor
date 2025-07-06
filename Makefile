@@ -16,6 +16,8 @@ help:
 	@echo cp-index
 	@echo rshell
 	@echo flash-pico-pressure-depth
+	@echo get-pico-pressure-depth
+
 
 .PHONY: init
 init:
