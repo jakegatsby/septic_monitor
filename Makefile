@@ -128,8 +128,8 @@ jinja-cli: pipx
 
 .PHONY: docker-up
 docker-up: jinja-cli
-	SEPMON_PICO_PRESSURE_IP=$(PICO_PRESSURE_IP) \
-	  jinja -X 'SEPMON*' prometheus.yml.j2 > prometheus.yml
+	SEPMON_PICO_PRESSURE_IP=$(PICO_PRESSURE_IP) jinja -X 'SEPMON*' prometheus.yml.j2 > prometheus.yml
+	docker compose up -d
 
 # pipx fails to install rshell on the older rpi for
 # some reason
