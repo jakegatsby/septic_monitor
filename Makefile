@@ -128,6 +128,7 @@ jinja-cli: pipx
 
 .PHONY: docker-up
 docker-up: jinja-cli
+	@echo Pico pressure sensor IP: $(PICO_PRESSURE_IP)
 	SEPMON_PICO_PRESSURE_IP=$(PICO_PRESSURE_IP) jinja -X 'SEPMON*' prometheus.yml.j2 > prometheus.yml
 	docker compose up -d
 
