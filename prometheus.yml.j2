@@ -28,7 +28,7 @@ scrape_configs:
     static_configs:
       - targets: ["{{ SEPMON_PICO_PRESSURE_IP }}:8080"]
 
-  - job_name: "sepmon_pump_vac"
+  - job_name: "sepmon_pump_power"
     static_configs:
-      - targets: ["pump_vac:8080"]  # FIXME (once renamed)
+      - targets: ["pump_power:8080"]
 
