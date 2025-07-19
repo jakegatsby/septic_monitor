@@ -17,9 +17,9 @@ services:
     - "3000:3000"
     depends_on:
     - "prometheus"
-  pump_vac:
+  pump_power:
     image: erniesprojects/sepmon
-    command: ["python", "/opt/septic_monitor/pump_vac.py"]
+    command: ["python", "/opt/septic_monitor/pump_power.py"]
     env_file: .env
     volumes:
     - "./septic_monitor:/opt/septic_monitor"
