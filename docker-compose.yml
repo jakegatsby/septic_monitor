@@ -26,78 +26,16 @@ services:
     - "/etc/timezone:/etc/timezone"
     restart: unless-stopped
     privileged: true
+  pump_current:
+    image: erniesprojects/sepmon
+    command: ["python", "/opt/septic_monitor/pump_current.py"]
+    env_file: .env
+    volumes:
+    - "./septic_monitor:/opt/septic_monitor"
+    - "/etc/timezone:/etc/timezone"
+    restart: unless-stopped
+    privileged: true
 
-
-
-
-
-
-
-
-
-
-
-
-
-#  nginx:
-#    image: nginx
-#    env_file: .env
-#    volumes:
-#    - "./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro"
-#    - "/etc/ssl/certs/ssl-cert-snakeoil.pem:/etc/ssl/certs/ssl-cert-snakeoil.pem"
-#    - "/etc/ssl/private/ssl-cert-snakeoil.key:/etc/ssl/private/ssl-cert-snakeoil.key"
-#    ports:
-#    - "80:80"
-#    - "443:443"
-#    restart: unless-stopped
-#    depends_on:
-#    - "grafana"
-#   api:
-#     image: erniesprojects/sepmon_base
-#     command: ["uvicorn", "septic_monitor.api:app", "--host", "0.0.0.0", "--port", "80"]
-#     env_file: .env
-#     volumes:
-#     - "./septic_monitor:/opt/sm/septic_monitor"
-#     - "/etc/timezone:/etc/timezone"
-#     restart: unless-stopped
-#     privileged: true
-#     ports:
-#     - "8080:80"
-#     depends_on:
-#     - "db"
-#   pump_i:
-#     image: erniesprojects/sepmon_base
-#     command: ["python", "/opt/sm/septic_monitor/pump_i.py"]
-#     volumes:
-#     - "./septic_monitor:/opt/sm/septic_monitor"
-#     - "/etc/timezone:/etc/timezone"
-#     env_file: .env
-#     restart: unless-stopped
-#     privileged: true
-#     depends_on:
-#     - "db"
-#   ultrasonic:
-#     image: erniesprojects/sepmon_base
-#     volumes:
-#     - "./septic_monitor:/opt/sm/septic_monitor"
-#     - "/etc/timezone:/etc/timezone"
-#     env_file: .env
-#     restart: unless-stopped
-#     privileged: true
-#     command: ["python", "/opt/sm/septic_monitor/ultrasonic.py"]
-#     depends_on:
-#     - "db"
-#   host:
-#     image: erniesprojects/sepmon_base
-#     command: ["python", "/opt/sm/septic_monitor/host.py"]
-#     volumes:
-#     - "./septic_monitor:/opt/sm/septic_monitor"
-#     - "/etc/timezone:/etc/timezone"
-#     env_file: .env
-#     restart: unless-stopped
-#     privileged: true
-#     depends_on:
-#     - "db"
 
 volumes:
   prometheus:

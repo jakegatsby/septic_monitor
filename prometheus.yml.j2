@@ -32,3 +32,6 @@ scrape_configs:
     static_configs:
       - targets: ["pump_power:8080"]
 
+  - job_name: "sepmon_pump_current"
+    static_configs:
+      - targets: ["pump_current:8080"]

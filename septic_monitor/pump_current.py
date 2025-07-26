@@ -11,14 +11,18 @@ import busio
 import RPi.GPIO as GPIO
 from adafruit_ads1x15.analog_in import AnalogIn
 
-from septic_monitor import logs, storage
+from prometheus_client import Gauge, start_http_server
 
-logging.basicConfig(level=logging.INFO, format=logs.LOG_FMT)
+log_fmt = "%(asctime)-28s %(module)-12s %(message)s"
+logging.basicConfig(level=logging.DEBUG, format=log_fmt)
 logger = logging.getLogger(__name__)
 
+METRICS_PORT = 8080
+SLEEP_TIMEOUT = 60
 V_TO_I_FACTOR = 6
 PUMP_RUNNING_GPIO = 27
 LED_GPIO = 26
+PUMP_CURRENT_GAUGE = Gauge("sepmon_pump_current", "sepmon_pump_current")
 
 i2c = busio.I2C(board.SCL, board.SDA)
 ads = ADS.ADS1115(i2c)
@@ -31,11 +35,11 @@ def signal_handler(sig, frame):
 
 
 def pump_current_callback(channel):
-    logger.info("Pump Running")
+    logger.info("Pump started running!")
     logger.info("{:>5}\t{:>5}\t{:>5}".format("-Raw-", "AC Voltage", "AC Current"))
 
     PUMP_STATE = 1
-    storage.set_pump_amperage(0.0)
+    PUMP_CURRENT_GAUGE.set(0.0)
     time.sleep(5)  #Delay start to eliminate surge current in pump motor reading
 
     while PUMP_STATE == 1:
@@ -44,11 +48,11 @@ def pump_current_callback(channel):
         logger.info(
             "{:>5}\t{:>5.3f}\t{:>5.3f}".format(chan.value, chan.voltage, chan_current)
         )
-        storage.set_pump_amperage(chan_current)
+        PUMP_CURRENT_GAUGE.set(chan_current)
         time.sleep(2)
 
-    storage.set_pump_amperage(0.0)
-    logger.info("Pump off, wrote 0.0 to database")
+    PUMP_CURRENT_GAUGE.set(0)
+    logger.info("Pump off, current = 0.0")
 
 
 if __name__ == "__main__":
@@ -64,10 +68,11 @@ if __name__ == "__main__":
 
     count = 0
     while True:
+        # set zero current every 60s if pump not running
         if count % 60 == 0:
             if GPIO.input(PUMP_RUNNING_GPIO) == 0:
-                storage.set_pump_amperage(0.0)
-                logger.info("Pump off, wrote 0.0 to database")
+                logger.info("Pump off, current = 0.0")
+                PUMP_CURRENT_GAUGE.set(0.0)
         GPIO.output(LED_GPIO, GPIO.HIGH)
         time.sleep(0.5)
         GPIO.output(LED_GPIO, GPIO.LOW)
