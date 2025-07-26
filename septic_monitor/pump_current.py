@@ -66,6 +66,9 @@ if __name__ == "__main__":
 
     signal.signal(signal.SIGINT, signal_handler)
 
+    start_http_server(METRICS_PORT)
+    logger.info(f"Serving metrics on port {METRICS_PORT}")
+
     count = 0
     while True:
         # set zero current every 60s if pump not running
