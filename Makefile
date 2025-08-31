@@ -19,6 +19,13 @@ help:
 	@echo get-pico-pressure-depth
 
 
+.PHONY: venv
+venv:
+	python3 -m venv --clear --system-site-packages venv
+	./venv/bin/python -m pip install pip "setuptools<71.0.0" setuptools-rust wheel --upgrade --no-cache-dir
+	./venv/bin/python -m pip install -r requirements.txt
+
+
 .PHONY: init
 init:
 	sudo apt update
@@ -159,3 +166,5 @@ get-pico-pressure-depth:
 .PHONY: watch-logs
 watch-logs:
 	docker compose logs -n 100 -f
+
+

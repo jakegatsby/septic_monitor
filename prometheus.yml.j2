@@ -35,3 +35,4 @@ scrape_configs:
   - job_name: "sepmon_pump_current"
     static_configs:
       - targets: ["pump_current:8080"]
+      - scrape_interval: 15s

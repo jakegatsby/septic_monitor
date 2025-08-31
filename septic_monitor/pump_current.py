@@ -11,19 +11,23 @@ import busio
 import RPi.GPIO as GPIO
 from adafruit_ads1x15.analog_in import AnalogIn
 
-from prometheus_client import Gauge, start_http_server
+
+from prometheus_client import CollectorRegistry, Gauge, start_http_server
+
 
 log_fmt = "%(asctime)-28s %(module)-12s %(message)s"
 logging.basicConfig(level=logging.DEBUG, format=log_fmt)
 logger = logging.getLogger(__name__)
 
 METRICS_PORT = 8080
-PUMP_OFF_READING_INTERVAL = 300
+PROMETHEUS_SCRAPE_FREQUENCY = 5
 PUMP_RUNNING_READING_INTERVAL = 10
 V_TO_I_FACTOR = 6
 PUMP_RUNNING_GPIO = 27
 LED_GPIO = 26
-PUMP_CURRENT_GAUGE = Gauge("sepmon_pump_current", "sepmon_pump_current")
+
+REGISTRY = CollectorRegistry()
+PUMP_CURRENT_GAUGE = Gauge("sepmon_pump_current", "sepmon_pump_current", registry=REGISTRY)
 
 i2c = busio.I2C(board.SCL, board.SDA)
 ads = ADS.ADS1115(i2c)
@@ -40,8 +44,11 @@ def pump_current_callback(channel):
     logger.info("{:>5}\t{:>5}\t{:>5}".format("-Raw-", "AC Voltage", "AC Current"))
 
     PUMP_STATE = 1
+    REGISTRY.register(PUMP_CURRENT_GAUGE)
     PUMP_CURRENT_GAUGE.set(0.0)
-    time.sleep(5)  #Delay start to eliminate surge current in pump motor reading
+    # Delay start to eliminate surge current in pump motor reading
+    # This must also be greater than the prometheus scrape frequency
+    time.sleep(PROMETHEUS_SCRAPE_FREQUENCY * 2)
 
     while PUMP_STATE == 1:
         PUMP_STATE = GPIO.input(PUMP_RUNNING_GPIO)
@@ -54,6 +61,8 @@ def pump_current_callback(channel):
 
     PUMP_CURRENT_GAUGE.set(0)
     logger.info("Pump off, current = 0.0")
+    time.sleep(PROMETHEUS_SCRAPE_FREQUENCY * 2)
+    REGISTRY.unregister(PUMP_CURRENT_GAUGE)
 
 
 if __name__ == "__main__":
@@ -67,19 +76,11 @@ if __name__ == "__main__":
 
     signal.signal(signal.SIGINT, signal_handler)
 
-    start_http_server(METRICS_PORT)
+    start_http_server(METRICS_PORT, registry=REGISTRY)
 
     logger.info(f"Serving metrics on port {METRICS_PORT}")
-    logger.info(f"PUMP_OFF_READING_INTERVAL: {PUMP_OFF_READING_INTERVAL}")
-    logger.info(f"PUMP_RUNNING_READING_INTERVAL: {PUMP_RUNNING_READING_INTERVAL}")
-
-    count = 0
-    while True:
-        # set zero current every PUMP_OFF_READING_INTERVAL seconds if pump not running
-        if count % PUMP_OFF_READING_INTERVAL == 0:
-            count = 0
-            if GPIO.input(PUMP_RUNNING_GPIO) == 0:
-                logger.info("Pump off, current = 0.0")
-                PUMP_CURRENT_GAUGE.set(0.0)
-        time.sleep(1)
-        count += 1
+    PUMP_CURRENT_GAUGE.set(0)
+    logger.info("Sleeping to allow prometheus to scrape initial 0 value...")
+    time.sleep(PROMETHEUS_SCRAPE_FREQUENCY * 4)
+    REGISTRY.unregister(PUMP_CURRENT_GAUGE)
+    logger.info("Unregistered PUMP_CURRENT_GAUGE")
