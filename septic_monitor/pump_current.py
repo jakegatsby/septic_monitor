@@ -68,7 +68,10 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
 
     start_http_server(METRICS_PORT)
+
     logger.info(f"Serving metrics on port {METRICS_PORT}")
+    logger.info(f"{PUMP_OFF_READING_INTERVAL=}")
+    logger.info(f"{PUMP_RUNNING_READING_INTERVAL=}")
 
     count = 0
     while True:
