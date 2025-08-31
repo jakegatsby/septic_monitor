@@ -21,12 +21,14 @@ logger = logging.getLogger(__name__)
 
 METRICS_PORT = 8080
 PROMETHEUS_SCRAPE_FREQUENCY = 5
-PUMP_RUNNING_READING_INTERVAL = 10
+PUMP_RUNNING_INTERVAL = 10
+PUMP_OFF_INTERVAL = 10
 V_TO_I_FACTOR = 6
 PUMP_RUNNING_GPIO = 27
 LED_GPIO = 26
 
 REGISTRY = CollectorRegistry()
+DUMMY = Gauge("sepmon_dummy", "sepmon_dummy", registry=REGISTRY)  # FIXME
 PUMP_CURRENT_GAUGE = Gauge("sepmon_pump_current", "sepmon_pump_current", registry=REGISTRY)
 
 i2c = busio.I2C(board.SCL, board.SDA)
@@ -57,7 +59,7 @@ def pump_current_callback(channel):
             "{:>5}\t{:>5.3f}\t{:>5.3f}".format(chan.value, chan.voltage, chan_current)
         )
         PUMP_CURRENT_GAUGE.set(chan_current)
-        time.sleep(PUMP_RUNNING_READING_INTERVAL)
+        time.sleep(PUMP_RUNNING_INTERVAL)
 
     PUMP_CURRENT_GAUGE.set(0)
     logger.info("Pump off, current = 0.0")
@@ -79,8 +81,14 @@ if __name__ == "__main__":
     start_http_server(METRICS_PORT, registry=REGISTRY)
 
     logger.info(f"Serving metrics on port {METRICS_PORT}")
-    PUMP_CURRENT_GAUGE.set(0)
-    logger.info("Sleeping to allow prometheus to scrape initial 0 value...")
-    time.sleep(PROMETHEUS_SCRAPE_FREQUENCY * 4)
-    REGISTRY.unregister(PUMP_CURRENT_GAUGE)
-    logger.info("Unregistered PUMP_CURRENT_GAUGE")
+
+    while True:
+        REGISTRY.register(PUMP_CURRENT_GAUGE)
+        logger.info("Registered PUMP_CURRENT_GAUGE")
+        PUMP_CURRENT_GAUGE.set(0)
+        logger.info(f"Sleeping {PROMETHEUS_SCRAPE_FREQUENCY * 2}s to allow prometheus to scrape 0 value...")
+        time.sleep(PROMETHEUS_SCRAPE_FREQUENCY * 2)
+        REGISTRY.unregister(PUMP_CURRENT_GAUGE)
+        logger.info("Unregistered PUMP_CURRENT_GAUGE")
+        logger.info(f"Sleeping {PUMP_OFF_INTERVAL}s...")
+        time.sleep(PUMP_OFF_INTERVAL)
