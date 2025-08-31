@@ -18,7 +18,8 @@ logging.basicConfig(level=logging.DEBUG, format=log_fmt)
 logger = logging.getLogger(__name__)
 
 METRICS_PORT = 8080
-SLEEP_TIMEOUT = 60
+PUMP_OFF_READING_INTERVAL: 300
+PUMP_RUNNING_READING_INTERVAL: 30
 V_TO_I_FACTOR = 6
 PUMP_RUNNING_GPIO = 27
 LED_GPIO = 26
@@ -49,7 +50,7 @@ def pump_current_callback(channel):
             "{:>5}\t{:>5.3f}\t{:>5.3f}".format(chan.value, chan.voltage, chan_current)
         )
         PUMP_CURRENT_GAUGE.set(chan_current)
-        time.sleep(2)
+        time.sleep(PUMP_RUNNING_READING_INTERVAL)
 
     PUMP_CURRENT_GAUGE.set(0)
     logger.info("Pump off, current = 0.0")
@@ -71,13 +72,11 @@ if __name__ == "__main__":
 
     count = 0
     while True:
-        # set zero current every 60s if pump not running
-        if count % 60 == 0:
+        # set zero current every PUMP_OFF_READING_INTERVAL seconds if pump not running
+        if count % PUMP_OFF_READING_INTERVAL == 0:
+            count = 0
             if GPIO.input(PUMP_RUNNING_GPIO) == 0:
                 logger.info("Pump off, current = 0.0")
                 PUMP_CURRENT_GAUGE.set(0.0)
-        GPIO.output(LED_GPIO, GPIO.HIGH)
-        time.sleep(0.5)
-        GPIO.output(LED_GPIO, GPIO.LOW)
-        time.sleep(0.5)
+        time.sleep(1)
         count += 1
