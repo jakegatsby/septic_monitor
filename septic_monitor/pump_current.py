@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 METRICS_PORT = 8080
 PUMP_OFF_READING_INTERVAL: 300
-PUMP_RUNNING_READING_INTERVAL: 30
+PUMP_RUNNING_READING_INTERVAL: 10
 V_TO_I_FACTOR = 6
 PUMP_RUNNING_GPIO = 27
 LED_GPIO = 26
@@ -70,8 +70,8 @@ if __name__ == "__main__":
     start_http_server(METRICS_PORT)
 
     logger.info(f"Serving metrics on port {METRICS_PORT}")
-    logger.info(f"{PUMP_OFF_READING_INTERVAL=}")
-    logger.info(f"{PUMP_RUNNING_READING_INTERVAL=}")
+    logger.info(f"PUMP_OFF_READING_INTERVAL: {PUMP_OFF_READING_INTERVAL}")
+    logger.info(f"PUMP_RUNNING_READING_INTERVAL: {PUMP_RUNNING_READING_INTERVAL}")
 
     count = 0
     while True:
