@@ -156,12 +156,6 @@ get-pico-pressure-depth:
 	@curl http://$(PICO_PRESSURE_IP):8080/metrics
 
 
-.PHONY: ec2-start-sepmon
-ec2-start-sepmon:
-	aws ec2 start-instances --instance-ids $$(aws ec2 describe-instances --filters "Name=tag:Name,Values=sepmon" | jq -r '.Reservations[0].Instances[0].InstanceId')
-
-
-.PHONY: ec2-stop-sepmon
-ec2-stop-sepmon:
-	aws ec2 stop-instances --instance-ids $$(aws ec2 describe-instances --filters "Name=tag:Name,Values=sepmon" | jq -r '.Reservations[0].Instances[0].InstanceId')
-
+.PHONY: watch-logs
+watch-logs:
+	docker compose -n 100 -f
