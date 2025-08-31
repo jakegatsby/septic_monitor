@@ -158,4 +158,4 @@ get-pico-pressure-depth:
 
 .PHONY: watch-logs
 watch-logs:
-	docker compose -n 100 -f
+	docker compose logs -n 100 -f
