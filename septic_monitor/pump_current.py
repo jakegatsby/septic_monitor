@@ -46,7 +46,7 @@ def pump_current_callback(channel):
     logger.info("{:>5}\t{:>5}\t{:>5}".format("-Raw-", "AC Voltage", "AC Current"))
 
     PUMP_STATE = 1
-    REGISTRY.register(PUMP_CURRENT_GAUGE)
+    register_gauge(PUMP_CURRENT_GAUGE)
     PUMP_CURRENT_GAUGE.set(0.0)
     # Delay start to eliminate surge current in pump motor reading
     # This must also be greater than the prometheus scrape frequency
@@ -64,7 +64,20 @@ def pump_current_callback(channel):
     PUMP_CURRENT_GAUGE.set(0)
     logger.info("Pump off, current = 0.0")
     time.sleep(PROMETHEUS_SCRAPE_FREQUENCY * 2)
-    REGISTRY.unregister(PUMP_CURRENT_GAUGE)
+    unregister_gauge(PUMP_CURRENT_GAUGE)
+
+def register_gauge(gauge):
+    try:
+        REGISTRY.register(gauge)
+    except ValueError as e:
+        if "Duplicated" in str(e):
+            logger.info(f"{gauge} already registered")
+
+def unregister_gauge(gauge):
+    try:
+        REGISTRY.unregister(gauge)
+    except KeyError as e:
+        logger.info(f"{gauge} already unregistered")
 
 
 if __name__ == "__main__":
@@ -83,12 +96,12 @@ if __name__ == "__main__":
     logger.info(f"Serving metrics on port {METRICS_PORT}")
 
     while True:
-        REGISTRY.register(PUMP_CURRENT_GAUGE)
+        register_gauge(PUMP_CURRENT_GAUGE)
         logger.info("Registered PUMP_CURRENT_GAUGE")
         PUMP_CURRENT_GAUGE.set(0)
         logger.info(f"Sleeping {PROMETHEUS_SCRAPE_FREQUENCY * 2}s to allow prometheus to scrape 0 value...")
         time.sleep(PROMETHEUS_SCRAPE_FREQUENCY * 2)
-        REGISTRY.unregister(PUMP_CURRENT_GAUGE)
+        unregister_gauge(PUMP_CURRENT_GAUGE)
         logger.info("Unregistered PUMP_CURRENT_GAUGE")
         logger.info(f"Sleeping {PUMP_OFF_INTERVAL}s...")
         time.sleep(PUMP_OFF_INTERVAL)
