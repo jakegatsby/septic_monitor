@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.DEBUG, format=log_fmt)
 logger = logging.getLogger(__name__)
 
 METRICS_PORT = 8080
-PROMETHEUS_SCRAPE_FREQUENCY = 5
+PROMETHEUS_SCRAPE_FREQUENCY = 15
 PUMP_RUNNING_INTERVAL = 10
 PUMP_OFF_INTERVAL = 600
 V_TO_I_FACTOR = 6
