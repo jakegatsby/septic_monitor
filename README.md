@@ -118,5 +118,4 @@ replica-announce-ip 192.168.2.12
 - browse to http://localhost:3000/connections/datasources and add new data source of type Prometheus
 - enter http://prometheus:9090 as the server URL
 - scroll to the bottom and "Save & test"
-
-
+- `max_over_time(sepmon_pump_current[$__interval])`
