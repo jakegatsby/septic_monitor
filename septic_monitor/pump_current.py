@@ -11,25 +11,20 @@ import busio
 import RPi.GPIO as GPIO
 from adafruit_ads1x15.analog_in import AnalogIn
 
-
-from prometheus_client import CollectorRegistry, Gauge, start_http_server
-
+from prometheus_client import Gauge, start_http_server
 
 log_fmt = "%(asctime)-28s %(module)-12s %(message)s"
 logging.basicConfig(level=logging.DEBUG, format=log_fmt)
 logger = logging.getLogger(__name__)
 
 METRICS_PORT = 8080
-PROMETHEUS_SCRAPE_FREQUENCY = 15
+SURGE_SLEEP = 5
 PUMP_RUNNING_INTERVAL = 10
-PUMP_OFF_INTERVAL = 600
 V_TO_I_FACTOR = 6
 PUMP_RUNNING_GPIO = 27
 LED_GPIO = 26
 
-REGISTRY = CollectorRegistry()
-DUMMY = Gauge("sepmon_dummy", "sepmon_dummy", registry=REGISTRY)  # FIXME
-PUMP_CURRENT_GAUGE = Gauge("sepmon_pump_current", "sepmon_pump_current", registry=REGISTRY)
+PUMP_CURRENT_GAUGE = Gauge("sepmon_pump_current", "sepmon_pump_current")
 
 i2c = busio.I2C(board.SCL, board.SDA)
 ads = ADS.ADS1115(i2c)
@@ -46,11 +41,8 @@ def pump_current_callback(channel):
     logger.info("{:>5}\t{:>5}\t{:>5}".format("-Raw-", "AC Voltage", "AC Current"))
 
     PUMP_STATE = 1
-    register_gauge(PUMP_CURRENT_GAUGE)
     PUMP_CURRENT_GAUGE.set(0.0)
-    # Delay start to eliminate surge current in pump motor reading
-    # This must also be greater than the prometheus scrape frequency
-    time.sleep(PROMETHEUS_SCRAPE_FREQUENCY * 2)
+    time.sleep(SURGE_SLEEP)  # Delay start to eliminate surge current in pump motor reading
 
     while PUMP_STATE == 1:
         PUMP_STATE = GPIO.input(PUMP_RUNNING_GPIO)
@@ -61,24 +53,8 @@ def pump_current_callback(channel):
         PUMP_CURRENT_GAUGE.set(chan_current)
         time.sleep(PUMP_RUNNING_INTERVAL)
 
-    PUMP_CURRENT_GAUGE.set(0)
+    PUMP_CURRENT_GAUGE.set(0.0)
     logger.info("Pump off, current = 0.0")
-    time.sleep(PROMETHEUS_SCRAPE_FREQUENCY * 2)
-    unregister_gauge(PUMP_CURRENT_GAUGE)
-
-def register_gauge(gauge):
-    try:
-        REGISTRY.register(gauge)
-    except ValueError as e:
-        if "Duplicated" in str(e):
-            logger.info(f"{gauge} already registered")
-
-def unregister_gauge(gauge):
-    try:
-        REGISTRY.unregister(gauge)
-    except KeyError as e:
-        logger.info(f"{gauge} already unregistered")
-
 
 if __name__ == "__main__":
     GPIO.setmode(GPIO.BCM)
@@ -91,17 +67,11 @@ if __name__ == "__main__":
 
     signal.signal(signal.SIGINT, signal_handler)
 
-    start_http_server(METRICS_PORT, registry=REGISTRY)
+    # http server starts in the background, we must
+    # keep this script alive or it will exit
+    start_http_server(METRICS_PORT)
 
-    logger.info(f"Serving metrics on port {METRICS_PORT}")
-
+    PUMP_CURRENT_GAUGE.set(0.0)
     while True:
-        register_gauge(PUMP_CURRENT_GAUGE)
-        logger.info("Registered PUMP_CURRENT_GAUGE")
-        PUMP_CURRENT_GAUGE.set(0)
-        logger.info(f"Sleeping {PROMETHEUS_SCRAPE_FREQUENCY * 2}s to allow prometheus to scrape 0 value...")
-        time.sleep(PROMETHEUS_SCRAPE_FREQUENCY * 2)
-        unregister_gauge(PUMP_CURRENT_GAUGE)
-        logger.info("Unregistered PUMP_CURRENT_GAUGE")
-        logger.info(f"Sleeping {PUMP_OFF_INTERVAL}s...")
-        time.sleep(PUMP_OFF_INTERVAL)
+        logger.info(f"Serving metrics on port {METRICS_PORT}")
+        time.sleep(300)
