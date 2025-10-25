@@ -86,9 +86,10 @@ async def ok_blink():
 
 @app.route("/metrics")
 async def metrics(request):
-    t = get_temperature()
-    d = get_pressure_depth()
-    return METRICS_TEMPLATE.format(depth=d, temperature=t)
+    return METRICS_TEMPLATE.format(
+        depth=get_pressure_depth(),
+        temperature=get_temperature()
+    )
 
 
 if __name__ == "__main__":
