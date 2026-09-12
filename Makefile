@@ -1,6 +1,7 @@
 SHELL:=/bin/bash
 
 PICO_PRESSURE_IP=$(shell jq -r .network.ip pico_pressure_depth/config)
+PICO_PUMP_METRICS_IP=$(shell jq -r .network.ip pico_pump_metrics/config)
 
 help:
 	@echo init
@@ -133,10 +134,16 @@ jinja-cli: pipx
 	pipx upgrade jinja-cli || pipx install jinja-cli
 
 
-.PHONY: docker-up
-docker-up: jinja-cli
+.PHONY: prometheus-yml
+prometheus-yml:
 	@echo Pico pressure sensor IP: $(PICO_PRESSURE_IP)
-	SEPMON_PICO_PRESSURE_IP=$(PICO_PRESSURE_IP) jinja -X 'SEPMON*' prometheus.yml.j2 > prometheus.yml
+	@echo Pico pump metrics IP: $(PICO_PUMP_METRICS_IP)
+	SEPMON_PICO_PRESSURE_IP=$(PICO_PRESSURE_IP) \
+	SEPMON_PICO_PUMP_METRICS_IP=$(PICO_PUMP_METRICS_IP) \
+	jinja -X 'SEPMON*' prometheus.yml.j2 > prometheus.yml
+
+.PHONY: docker-up
+docker-up: jinja-cli prometheus-yml
 	docker compose up -d
 
 # pipx fails to install rshell on the older rpi for

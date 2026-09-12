@@ -22,6 +22,11 @@ scrape_configs:
   static_configs:
   - targets: ["{{ SEPMON_PICO_PRESSURE_IP }}:8080"]
 
+- job_name: "sepmon_pico_pump_metrics"
+  scrape_interval: 10s
+  static_configs:
+  - targets: ["{{ SEPMON_PICO_PUMP_METRICS_IP }}:8080"]
+
 - job_name: "sepmon_pump_power"
   scrape_interval: 300s
   static_configs:
