@@ -65,7 +65,11 @@ def get_temperature():
 
 
 def get_pressure_depth():
-    adc = (PRESSURE_SENSOR.read_u16() / 65535) * 100  # this is 0-65535 (12bit converted to 16bit)
+    """
+    PRESSURE_SENSOR.read_u16() returns 0-65535 (12bit converted to 16bit)
+    This function returns a value between 0 and 100
+    """
+    adc = (PRESSURE_SENSOR.read_u16() / 65535) * 100
     return round(adc)
 
 
