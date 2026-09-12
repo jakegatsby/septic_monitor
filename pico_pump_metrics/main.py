@@ -87,6 +87,16 @@ def get_ac_current():
     return round(ac_current)
 
 
+def get_ac_power():
+    print("TODO!")
+    return 0
+
+
+def get_pump_state():
+    print("TODO!")
+    return 0
+
+
 async def check_networking(wlan):
     while True:
         connected = wlan.isconnected()
@@ -107,6 +117,8 @@ async def metrics(request):
     return METRICS_TEMPLATE.format(
         temperature=get_temperature(),
         pump_ac_current=get_ac_current(),
+        pump_ac_power=get_ac_power(),
+        pump_state=get_pump_state()
     )
 
 
