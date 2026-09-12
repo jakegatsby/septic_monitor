@@ -1,4 +1,5 @@
-SHELL:=/bin/bash
+SHELL := /bin/bash
+MAKEFLAPGS += --always-make
 
 PICO_PRESSURE_IP=$(shell jq -r .network.ip pico_pressure_depth/config)
 PICO_PUMP_METRICS_IP=$(shell jq -r .network.ip pico_pump_metrics/config)
@@ -20,14 +21,12 @@ help:
 	@echo get-pico-pressure-depth
 
 
-.PHONY: venv
 venv:
 	python3 -m venv --clear --system-site-packages venv
 	./venv/bin/python -m pip install pip "setuptools<71.0.0" setuptools-rust wheel --upgrade --no-cache-dir
 	./venv/bin/python -m pip install -r requirements.txt
 
 
-.PHONY: init
 init:
 	sudo apt update
 	sudo apt -y install i2c-tools python3-venv python3-smbus python3-testresources python3-numpy python3-scipy postgresql-client-common postgresql-client-* libpq-dev
@@ -39,7 +38,6 @@ init:
 	test -f .env || cp .env.sample .env
 
 
-.PHONY: docker-install
 docker-install:
 	sudo apt update
 	sudo apt-get -y install apt-transport-https ca-certificates curl gnupg lsb-release apache2-utils
@@ -51,21 +49,18 @@ docker-install:
 	@echo ==============================
 
 
-.PHONY: docker-config
 docker-config:
 	sudo mkdir /etc/docker -p
 	sudo cp daemon.json /etc/docker/daemon.json
 	sudo systemctl restart docker
 
 
-.PHONY: fix-seccomp2
 fix-seccomp2:
 	curl http://ftp.us.debian.org/debian/pool/main/libs/libseccomp/libseccomp2_2.5.1-1_armhf.deb --output libseccomp2_2.5.1-1_armhf.deb
 	sudo dpkg -i libseccomp2_2.5.1-1_armhf.deb
 	rm libseccomp2_2.5.1-1_armhf.deb -f
 
 
-.PHONY: db-clean
 db-clean:
 	@echo WARNING - this will delete database data
 	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} == y ]
@@ -76,7 +71,6 @@ db-clean:
 	sudo ./venv/bin/ansible-playbook ansible/fix-timescaledb-config.yml
 
 
-.PHONY: docker-clean
 docker-clean:
 	@echo WARNING - this will delete database data
 	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} == y ]
@@ -87,54 +81,43 @@ docker-clean:
 	docker system prune -a -f
 
 
-.PHONY: docker-build
 docker-build:
 	docker build -t erniesprojects/sepmon .
 
 
-.PHONY: docker-push
 docker-push:
 	docker push erniesprojects/sepmon
 
-.PHONY: mock
+
 mock:
 	#	sudo apt -y install python3-numpy python3-scipy
 	./venv/bin/python septic_monitor/mock.py
 
 
-.PHONY: cp-index
 cp-index:
 	aws s3 cp ./dashboard/index.html s3://septic-monitor/index.html
 	aws s3api put-object-acl --bucket septic-monitor --key index.html --acl public-read
 
 
-.PHONY: fix-iptables
 fix-iptables:
 	sudo update-alternatives --set iptables /usr/sbin/iptables-legacy
 	@echo reboot required
 
 
-.PHONY: pipx
 pipx:
 	if ! which pipx; then sudo apt update && sudo apt-get -y install pipx && pipx ensurepath; fi
 
-.PHONY: thonny
+
 thonny: pipx
 	sudo apt-get install python3-tk
 	pipx upgrade thonny || pipx install thonny
 
 
-.PHONY: support
-support:
-	# FROM Pi:  ssh ubuntu@<ec2-ip> -R 2222:localhost:22
-	# FROM EC2: use sepsup keypair
 
-.PHONY: jinja-cli
 jinja-cli: pipx
 	pipx upgrade jinja-cli || pipx install jinja-cli
 
 
-.PHONY: prometheus-yml
 prometheus-yml:
 	@echo Pico pressure sensor IP: $(PICO_PRESSURE_IP)
 	@echo Pico pump metrics IP: $(PICO_PUMP_METRICS_IP)
@@ -142,35 +125,35 @@ prometheus-yml:
 	SEPMON_PICO_PUMP_METRICS_IP=$(PICO_PUMP_METRICS_IP) \
 	jinja -X 'SEPMON*' prometheus.yml.j2 > prometheus.yml
 
-.PHONY: docker-up
+
 docker-up: jinja-cli prometheus-yml
 	docker compose up -d
 
 # pipx fails to install rshell on the older rpi for
 # some reason
-.PHONY: rshell
 rshell: pipx
 	pipx upgrade rshell || pipx install rshell
 
 
-.PHONY: flash-pico-pressure-depth-microdot
-flash-pico-pressure-depth-microdot:
-	rshell cp ./pico_pressure_depth/microdot.py /pyboard/
+flash-pico-microdot:
+	rshell cp ./microdot.py /pyboard/
 	rshell "repl ~ import machine ~ machine.soft_reset() ~"
 
 
-.PHONY: flash-pico-pressure-depth
 flash-pico-pressure-depth:
 	rshell cp ./pico_pressure_depth/{main.py,config} /pyboard/
 	rshell "repl ~ import machine ~ machine.soft_reset() ~"
 
 
-.PHONY: get-pico-pressure-depth
+flash-pico-pump-metrics:
+	rshell cp ./pico_pump_metrics/{main.py,config} /pyboard/
+	rshell "repl ~ import machine ~ machine.soft_reset() ~"
+
+
 get-pico-pressure-depth:
 	@curl http://$(PICO_PRESSURE_IP):8080/metrics
 
 
-.PHONY: watch-logs
 watch-logs:
 	docker compose logs -n 100 -f
 
