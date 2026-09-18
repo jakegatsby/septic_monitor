@@ -2,11 +2,20 @@ services:
   prometheus:
     image: "prom/prometheus"
     ports:
-      - "9090:9090"
+    - "9090:9090"
     volumes:
     - "./prometheus.yml:/etc/prometheus/prometheus.yml"
     - "prometheus:/prometheus"
     restart: unless-stopped
+    depends_on:
+    - "pushgateway"
+
+  pushgateway:
+    image: "prom/pushgateway"
+    ports:
+    - "9091:9091"
+    restart: unless-stopped
+
   grafana:
     image: "grafana/grafana-oss"
     env_file: .env
@@ -17,24 +26,25 @@ services:
     - "3000:3000"
     depends_on:
     - "prometheus"
-  pump_power:
-    image: erniesprojects/sepmon
-    command: ["python", "/opt/septic_monitor/pump_power.py"]
-    env_file: .env
-    volumes:
-    - "./septic_monitor:/opt/septic_monitor"
-    - "/etc/timezone:/etc/timezone"
-    restart: unless-stopped
-    privileged: true
-  pump_current:
-    image: erniesprojects/sepmon
-    command: ["python", "/opt/septic_monitor/pump_current.py"]
-    env_file: .env
-    volumes:
-    - "./septic_monitor:/opt/septic_monitor"
-    - "/etc/timezone:/etc/timezone"
-    restart: unless-stopped
-    privileged: true
+
+  # pump_power:
+  #   image: erniesprojects/sepmon
+  #   command: ["python", "/opt/septic_monitor/pump_power.py"]
+  #   env_file: .env
+  #   volumes:
+  #   - "./septic_monitor:/opt/septic_monitor"
+  #   - "/etc/timezone:/etc/timezone"
+  #   restart: unless-stopped
+  #   privileged: true
+  # pump_current:
+  #   image: erniesprojects/sepmon
+  #   command: ["python", "/opt/septic_monitor/pump_current.py"]
+  #   env_file: .env
+  #   volumes:
+  #   - "./septic_monitor:/opt/septic_monitor"
+  #   - "/etc/timezone:/etc/timezone"
+  #   restart: unless-stopped
+  #   privileged: true
 
 
 volumes:

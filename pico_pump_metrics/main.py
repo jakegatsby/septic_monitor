@@ -1,11 +1,12 @@
 import asyncio
+import gc
 import json
 import time
 
 import network
 import machine
 
-from microdot import Microdot
+from microdot import Microdot, Response
 
 # AC power (pump has power) (0 or 5)
 # CURRENT (amps) 15
@@ -13,11 +14,24 @@ from microdot import Microdot
 
 app = Microdot()
 
-METRICS_TEMPLATE = """# HELP sepmon_pump_ac_current Pump AC current
+STATE = {
+    "current_metrics": {},
+    "last_scraped_metrics": {},
+}
+
+METRICS_PORT = 8080
+LED = machine.Pin("LED", machine.Pin.OUT)
+TEMP_PIN = 4
+TEMP_SENSOR = machine.ADC(TEMP_PIN)
+CURRENT_PIN =
+CURRENT_SENSOR = machine.ADC(CURRENT_PIN)
+
+METRICS_TEMPLATE = """
+# HELP sepmon_pump_ac_current Pump AC current
 # TYPE sepmon_pump_ac_current gauge
 sepmon_pump_ac_current {pump_ac_current}
 
-# HELP sepmon_pump_ac_power Pump AC power
+# HELP sepmon_pump_ac_power Pump AC power live
 # TYPE sepmon_pump_ac_power gauge
 sepmon_pump_ac_power {pump_ac_power}
 
@@ -29,14 +43,6 @@ sepmon_pump_ac_state {pump_state}
 # TYPE sepmon_pressure_sensor_temperature gauge
 sepmon_pressure_sensor_temperature {temperature}
 """
-
-METRICS_PORT = 8080
-LED = machine.Pin("LED", machine.Pin.OUT)
-TEMP_PIN = 4
-TEMP_SENSOR = machine.ADC(TEMP_PIN)
-CURRENT_PIN =
-CURRENT_SENSOR = machine.ADC(CURRENT_PIN)
-
 
 
 with open("config") as f:
@@ -103,6 +109,7 @@ async def check_networking(wlan):
         print(f"{time.time()} Network Check: {wlan}")
         if not connected:
             wlan = network_connect()
+        gc.collect()
         await asyncio.sleep(300)
 
 
@@ -112,19 +119,40 @@ async def ok_blink():
         await asyncio.sleep(2)
 
 
+async def poll_metrics():
+    while True:
+        STATE["current_metrics"] = {
+            "temperature": get_temperature(),
+            "pump_ac_current": get_ac_current(),
+            "pump_ac_power": get_ac_power(),
+            "pump_state": get_pump_state()
+        }
+        gc.collect()
+        await asyncio.sleep(1)
+
+
 @app.route("/metrics")
 async def metrics(request):
-    return METRICS_TEMPLATE.format(
-        temperature=get_temperature(),
-        pump_ac_current=get_ac_current(),
-        pump_ac_power=get_ac_power(),
-        pump_state=get_pump_state()
-    )
+    current_metrics = STATE.get("current_metrics")
+    if not current_metrics:
+        return Response("", status_code=204)
+    payload = METRICS_TEMPLATE.format(**current_metrics)
+    mode = request.args["mode"]
+    if mode == "heartbeat":
+        STATE["last_scraped_metrics"] = current_metrics
+        return Response(payload, headers={'Content-Type': 'text/plain; version=0.0.4'})
+    if FIXME-sendsor-is-firing:
+        FIXME
+    else:
+        return Response("", status_code=204)
+
+async def main():
+    asyncio.create_task(check_networking(wlan))
+    asyncio.create_task(ok_blink())
+    asyncio.create_task(poll_metrics())
+    await app.start_server(host='0.0.0.0', port=80)
 
 
 if __name__ == "__main__":
     wlan = network_connect()
-    asyncio.create_task(check_networking(wlan))
-    asyncio.create_task(ok_blink())
-    print(f"Serving metrics at http://{CONFIG['network']['ip']}:{METRICS_PORT}/metrics")
-    app.run(port=METRICS_PORT)
+    asyncio.run(main())

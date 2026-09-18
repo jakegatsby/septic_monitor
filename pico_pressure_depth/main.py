@@ -9,6 +9,18 @@ from microdot import Microdot
 
 app = Microdot()
 
+STATE = {
+    "current_metrics": {},
+    "last_scraped_metrics": {},
+}
+
+METRICS_PORT = 8080
+LED = machine.Pin("LED", machine.Pin.OUT)
+TEMP_PIN = 4
+TEMP_SENSOR = machine.ADC(TEMP_PIN)
+PRESSURE_PIN = 28
+PRESSURE_SENSOR = machine.ADC(PRESSURE_PIN)
+
 METRICS_TEMPLATE = """# HELP sepmon_pressure_depth Pressure sensor depth reading
 # TYPE sepmon_pressure_depth gauge
 sepmon_pressure_depth {depth}
@@ -18,12 +30,6 @@ sepmon_pressure_depth {depth}
 sepmon_pressure_sensor_temperature {temperature}
 """
 
-METRICS_PORT = 8080
-LED = machine.Pin("LED", machine.Pin.OUT)
-TEMP_PIN = 4
-TEMP_SENSOR = machine.ADC(TEMP_PIN)
-PRESSURE_PIN = 28
-PRESSURE_SENSOR = machine.ADC(PRESSURE_PIN)
 
 with open("config") as f:
     CONFIG = json.load(f)
@@ -79,6 +85,7 @@ async def check_networking(wlan):
         print(f"{time.time()} Network Check: {wlan}")
         if not connected:
             wlan = network_connect()
+        gc.collect()
         await asyncio.sleep(300)
 
 
@@ -88,17 +95,33 @@ async def ok_blink():
         await asyncio.sleep(2)
 
 
+async def poll_metrics():
+    while True:
+        STATE["current_metrics"] = {
+            "depth": get_pressure_depth(),
+            "temperature": get_temperature()
+        }
+        gc.collect()
+        await asyncio.sleep(10)
+
+
 @app.route("/metrics")
 async def metrics(request):
-    return METRICS_TEMPLATE.format(
-        depth=get_pressure_depth(),
-        temperature=get_temperature()
-    )
+    current_metrics = STATE.get("current_metrics")
+    if not current_metrics:
+        return Response("", status_code=204)
+    payload = METRICS_TEMPLATE.format(**current_metrics)
+    STATE["last_scraped_metrics"] = current_metrics
+    return Response(payload, headers={'Content-Type': 'text/plain; version=0.0.4'})
+
+
+async def main():
+    asyncio.create_task(check_networking(wlan))
+    asyncio.create_task(ok_blink())
+    asyncio.create_task(poll_metrics())
+    await app.start_server(host='0.0.0.0', port=80)
 
 
 if __name__ == "__main__":
     wlan = network_connect()
-    asyncio.create_task(check_networking(wlan))
-    asyncio.create_task(ok_blink())
-    print(f"Serving metrics at http://{CONFIG['network']['ip']}:{METRICS_PORT}/metrics")
-    app.run(port=METRICS_PORT)
+    asyncio.run(main())
