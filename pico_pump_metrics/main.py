@@ -2,15 +2,11 @@ import asyncio
 import gc
 import json
 import time
-
+import math
 import network
 import machine
 
 from microdot import Microdot, Response
-
-# AC power (pump has power) (0 or 5)
-# CURRENT (amps) 15
-# ON/OFF (pump running or not)
 
 app = Microdot()
 
@@ -21,13 +17,16 @@ STATE = {
 
 METRICS_PORT = 8080
 LED = machine.Pin("LED", machine.Pin.OUT)
-TEMP_PIN = 4
+
+# ADC Pins: GP26 (ADC0), GP27 (ADC1), GP28 (ADC2)
+# Avoided GP24 (CYW43 SPI data line)
+TEMP_PIN = 4  # Internal MicroPython ADC channel 4 for MCU temperature
 TEMP_SENSOR = machine.ADC(TEMP_PIN)
-CURRENT_PIN = 24
+
+CURRENT_PIN = 26  # GP26 / Physical Pin 31 (ADC0)
 CURRENT_SENSOR = machine.ADC(CURRENT_PIN)
 
-METRICS_TEMPLATE = """
-# HELP sepmon_pump_ac_current Pump AC current
+METRICS_TEMPLATE = """# HELP sepmon_pump_ac_current Pump AC current RMS
 # TYPE sepmon_pump_ac_current gauge
 sepmon_pump_ac_current {pump_ac_current}
 
@@ -44,7 +43,6 @@ sepmon_pump_ac_state {pump_state}
 sepmon_pressure_sensor_temperature {temperature}
 """
 
-
 with open("config") as f:
     CONFIG = json.load(f)
 
@@ -55,24 +53,20 @@ async def cleanup(request, response):
     return response
 
 
-def error_blink():
+def blink():
+    LED.value(not LED.value())
+
+
+async def error_blink():
     for _ in range(20):
         blink()
-        time.sleep(0.08)
-
-
-def blink():
-    if LED.value() == 0:
-        LED.on()
-    else:
-        LED.off()
+        await asyncio.sleep(0.08)
 
 
 async def configure_networking():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
 
-    # Load network settings
     ip = CONFIG["network"]["ip"]
     subnet = CONFIG["network"].get("subnet", "255.255.255.0")
     gateway = CONFIG["network"].get("gateway", "192.168.1.1")
@@ -80,55 +74,77 @@ async def configure_networking():
 
     while True:
         if not wlan.isconnected():
-            print("WLAN disconnected or connecting...")
-            # Set static IP mode before attempting connection
-            wlan.ifconfig((ip, subnet, gateway, dns))
-            wlan.connect(CONFIG["network"]["ssid"], CONFIG["network"]["password"])
+            print("Connecting to Wi-Fi...")
+            try:
+                # Disable Wi-Fi power-saving mode to prevent dropped packets / high latency
+                wlan.config(pm=0xa11140)
+                wlan.ifconfig((ip, subnet, gateway, dns))
+                wlan.connect(CONFIG["network"]["ssid"], CONFIG["network"]["password"])
 
-            # Non-blocking connection check loop
-            while not wlan.isconnected():
-                print("Waiting for Wi-Fi connection...")
-                blink()
-                await asyncio.sleep(0.5)
+                # Connection attempt loop with 10-second timeout
+                for _ in range(20):
+                    if wlan.isconnected():
+                        print(f"Connected! IP set to {wlan.ifconfig()[0]}")
+                        break
+                    blink()
+                    await asyncio.sleep(0.5)
 
-            print(f"Connected! IP set to {wlan.ifconfig()[0]}")
+                if not wlan.isconnected():
+                    print("Wi-Fi connection attempt timed out.")
+                    await error_blink()
 
-        # Poll connection status every 30 seconds
-        await asyncio.sleep(30)
+            except Exception as e:
+                print(f"Wi-Fi Error: {e}")
+                await error_blink()
 
+        # Poll Wi-Fi status every 15 seconds
+        await asyncio.sleep(15)
 
 
 def get_temperature():
     adc_value = TEMP_SENSOR.read_u16()
     volt = (3.3 / 65535) * adc_value
+    # MicroPython internal MCU temperature sensor standard conversion
     return round(27 - (volt - 0.706) / 0.001721, 1)
 
 
 def get_ac_current():
     """
-    CURRENT_SENSOR.read_u16() returns 0-65535 (12bit converted to 16bit)
-    This function returns a value between 0 and 15
+    Samples over 40ms (~2 full cycles at 50Hz/60Hz).
+    Assumes a 1.65V DC offset bias (mid-point = 32768 on 16-bit scale).
     """
-    # Quick sampling over 40ms (~2 cycles at 50/60Hz) to find peak
     start = time.ticks_ms()
-    max_val = 0
+    max_diff = 0
+    baseline = 32768  # Midpoint DC offset for biased AC current transducers
+
     while time.ticks_diff(time.ticks_ms(), start) < 40:
         val = CURRENT_SENSOR.read_u16()
-        if val > max_val:
-            max_val = val
-    # Convert raw ADC peak to approximate AC RMS amps
-    amps = (max_val / 65535) * 15
-    return round(amps, 2)
+        diff = abs(val - baseline)
+        if diff > max_diff:
+            max_diff = diff
+
+    # Scale peak displacement to Amps, then convert Peak to RMS (RMS = Peak / sqrt(2))
+    peak_amps = (max_diff / 32768) * 15
+    rms_amps = peak_amps / math.sqrt(2)
+
+    # Noise gate: filter out trace ADC fluctuations at zero load
+    if rms_amps < 0.1:
+        rms_amps = 0.0
+
+    return round(rms_amps, 2)
 
 
 def get_ac_power():
-    print("TODO!")
-    return 0
+    # Power = V_rms * I_rms (Assuming 120V AC nominal for this metric)
+    current = STATE["current_metrics"].get("pump_ac_current", 0)
+    voltage = CONFIG.get("ac_voltage", 120)
+    return round(current * voltage, 1)
 
 
 def get_pump_state():
-    print("TODO!")
-    return 0
+    # 1 if pump is pulling current above threshold, 0 if off
+    current = STATE["current_metrics"].get("pump_ac_current", 0)
+    return 1 if current > 0.5 else 0
 
 
 async def ok_blink():
@@ -139,11 +155,15 @@ async def ok_blink():
 
 async def poll_metrics():
     while True:
+        # Measure current first so get_ac_power and get_pump_state can utilize it
+        ac_current = get_ac_current()
+        temp = get_temperature()
+
         STATE["current_metrics"] = {
-            "temperature": get_temperature(),
-            "pump_ac_current": get_ac_current(),
-            "pump_ac_power": get_ac_power(),
-            "pump_state": get_pump_state()
+            "temperature": temp,
+            "pump_ac_current": ac_current,
+            "pump_ac_power": round(ac_current * CONFIG.get("ac_voltage", 120), 1),
+            "pump_state": 1 if ac_current > 0.5 else 0
         }
         gc.collect()
         await asyncio.sleep(1)
@@ -153,23 +173,22 @@ async def poll_metrics():
 async def metrics(request):
     current_metrics = STATE.get("current_metrics")
     if not current_metrics:
-        return Response("", status_code=204)
+        return Response("Metrics Not Ready", status_code=503)
+
     payload = METRICS_TEMPLATE.format(**current_metrics)
-    mode = request.args.get("mode")
-    if mode == "heartbeat":
-        STATE["last_scraped_metrics"] = current_metrics
-        return Response(payload, headers={'Content-Type': 'text/plain; version=0.0.4'})
-    #if FIXME-sendsor-is-firing:
-    #    FIXME
-    else:
-        return Response("", status_code=204)
+    STATE["last_scraped_metrics"] = current_metrics
+
+    return Response(
+        payload,
+        headers={'Content-Type': 'text/plain; version=0.0.4'}
+    )
 
 
 async def main():
     asyncio.create_task(configure_networking())
     asyncio.create_task(ok_blink())
     asyncio.create_task(poll_metrics())
-    await app.start_server(host='0.0.0.0', port=80)
+    await app.start_server(host='0.0.0.0', port=METRICS_PORT)
 
 
 if __name__ == "__main__":
