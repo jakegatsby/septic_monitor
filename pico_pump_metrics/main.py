@@ -155,15 +155,11 @@ async def ok_blink():
 
 async def poll_metrics():
     while True:
-        # Measure current first so get_ac_power and get_pump_state can utilize it
-        ac_current = get_ac_current()
-        temp = get_temperature()
-
         STATE["current_metrics"] = {
-            "temperature": temp,
-            "pump_ac_current": ac_current,
-            "pump_ac_power": round(ac_current * CONFIG.get("ac_voltage", 120), 1),
-            "pump_state": 1 if ac_current > 0.5 else 0
+            "temperature": get_temperature(),
+            "pump_ac_current": get_ac_current(),
+            "pump_ac_power": get_ac_power(),
+            "pump_state": get_pump_state()
         }
         gc.collect()
         await asyncio.sleep(1)
