@@ -41,40 +41,64 @@ async def cleanup(request, response):
     return response
 
 
+def blink():
+    LED.value(not LED.value())
 
-def error_blink():
+
+async def ok_blink():
+    while True:
+        blink()
+        await asyncio.sleep(2)
+
+
+async def error_blink():
     for _ in range(20):
         blink()
-        time.sleep(0.08)
+        await asyncio.sleep(0.08)
 
 
-def blink():
-    if LED.value() == 0:
-        LED.on()
-    else:
-        LED.off()
-
-
-def network_connect():
+async def configure_networking():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
-    wlan.connect(CONFIG["network"]["ssid"], CONFIG["network"]["password"])
-    while not wlan.isconnected():
-        print("Connecting to WLAN")
-        error_blink()
-        time.sleep(1)
-    print("connected to wifi:")
-    ifconfig = wlan.ifconfig()
+
     ip = CONFIG["network"]["ip"]
-    wlan.ifconfig((ip, ifconfig[1], ifconfig[2], ifconfig[3]))
-    print(f"IP set to {ip}")
-    return wlan
+    subnet = CONFIG["network"].get("subnet", "255.255.255.0")
+    gateway = CONFIG["network"].get("gateway", "192.168.1.1")
+    dns = CONFIG["network"].get("dns", "192.168.1.1")
+
+    while True:
+        if not wlan.isconnected():
+            print("Connecting to Wi-Fi...")
+            try:
+                # Disable Wi-Fi power-saving mode to prevent dropped packets / high latency
+                wlan.config(pm=0xa11140)
+                wlan.ifconfig((ip, subnet, gateway, dns))
+                wlan.connect(CONFIG["network"]["ssid"], CONFIG["network"]["password"])
+
+                # Connection attempt loop with 10-second timeout
+                for _ in range(20):
+                    if wlan.isconnected():
+                        print(f"Connected! IP set to {wlan.ifconfig()[0]}")
+                        break
+                    blink()
+                    await asyncio.sleep(0.5)
+
+                if not wlan.isconnected():
+                    print("Wi-Fi connection attempt timed out.")
+                    await error_blink()
+
+            except Exception as e:
+                print(f"Wi-Fi Error: {e}")
+                await error_blink()
+
+        # Poll Wi-Fi status every 15 seconds
+        await asyncio.sleep(15)
 
 
 def get_temperature():
     adc_value = TEMP_SENSOR.read_u16()
     volt = (3.3 / 65535) * adc_value
-    return round(27 - (volt - 0.706) / 0.001721, 1)
+    return round(27 - (volt - 0.706) / 0.001721, 1)  # covert internal MCU temp to outside temp
 
 
 def get_pressure_depth():
@@ -83,23 +107,7 @@ def get_pressure_depth():
     This function returns a value between 0 and 100
     """
     adc = (PRESSURE_SENSOR.read_u16() / 65535) * 100
-    return round(adc)
-
-
-async def check_networking(wlan):
-    while True:
-        connected = wlan.isconnected()
-        print(f"{time.time()} Network Check: {wlan}")
-        if not connected:
-            wlan = network_connect()
-        gc.collect()
-        await asyncio.sleep(300)
-
-
-async def ok_blink():
-    while True:
-        blink()
-        await asyncio.sleep(2)
+    return round(adc, 1)
 
 
 async def poll_metrics():
@@ -116,14 +124,14 @@ async def poll_metrics():
 async def metrics(request):
     current_metrics = STATE.get("current_metrics")
     if not current_metrics:
-        return Response("", status_code=204)
+        return Response("Metrics Not Ready", status_code=503)
     payload = METRICS_TEMPLATE.format(**current_metrics)
     STATE["last_scraped_metrics"] = current_metrics
     return Response(payload, headers={'Content-Type': 'text/plain; version=0.0.4'})
 
 
 async def main():
-    asyncio.create_task(check_networking(wlan))
+    asyncio.create_task(configure_networking())
     asyncio.create_task(ok_blink())
     asyncio.create_task(poll_metrics())
     await app.start_server(host='0.0.0.0', port=80)

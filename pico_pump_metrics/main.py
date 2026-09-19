@@ -104,8 +104,7 @@ async def configure_networking():
 def get_temperature():
     adc_value = TEMP_SENSOR.read_u16()
     volt = (3.3 / 65535) * adc_value
-    # MicroPython internal MCU temperature sensor standard conversion
-    return round(27 - (volt - 0.706) / 0.001721, 1)
+    return round(27 - (volt - 0.706) / 0.001721, 1)  # covert internal MCU temp to outside temp
 
 
 def get_ac_current():
@@ -155,6 +154,10 @@ async def ok_blink():
 
 async def poll_metrics():
     while True:
+        # Measure current first so get_ac_power and get_pump_state can utilize it
+        ac_current = get_ac_current()
+        temp = get_temperature()
+
         STATE["current_metrics"] = {
             "temperature": get_temperature(),
             "pump_ac_current": get_ac_current(),
