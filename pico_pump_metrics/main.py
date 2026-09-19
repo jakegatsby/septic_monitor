@@ -23,7 +23,7 @@ METRICS_PORT = 8080
 LED = machine.Pin("LED", machine.Pin.OUT)
 TEMP_PIN = 4
 TEMP_SENSOR = machine.ADC(TEMP_PIN)
-CURRENT_PIN =
+CURRENT_PIN = 24
 CURRENT_SENSOR = machine.ADC(CURRENT_PIN)
 
 METRICS_TEMPLATE = """
@@ -68,20 +68,34 @@ def blink():
         LED.off()
 
 
-def network_connect():
+async def configure_networking():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
-    wlan.connect(CONFIG["network"]["ssid"], CONFIG["network"]["password"])
-    while not wlan.isconnected():
-        print("Connecting to WLAN")
-        error_blink()
-        time.sleep(1)
-    print("connected to wifi:")
-    ifconfig = wlan.ifconfig()
+
+    # Load network settings
     ip = CONFIG["network"]["ip"]
-    wlan.ifconfig((ip, ifconfig[1], ifconfig[2], ifconfig[3]))
-    print(f"IP set to {ip}")
-    return wlan
+    subnet = CONFIG["network"].get("subnet", "255.255.255.0")
+    gateway = CONFIG["network"].get("gateway", "192.168.1.1")
+    dns = CONFIG["network"].get("dns", "192.168.1.1")
+
+    while True:
+        if not wlan.isconnected():
+            print("WLAN disconnected or connecting...")
+            # Set static IP mode before attempting connection
+            wlan.ifconfig((ip, subnet, gateway, dns))
+            wlan.connect(CONFIG["network"]["ssid"], CONFIG["network"]["password"])
+
+            # Non-blocking connection check loop
+            while not wlan.isconnected():
+                print("Waiting for Wi-Fi connection...")
+                blink()
+                await asyncio.sleep(0.5)
+
+            print(f"Connected! IP set to {wlan.ifconfig()[0]}")
+
+        # Poll connection status every 30 seconds
+        await asyncio.sleep(30)
+
 
 
 def get_temperature():
@@ -95,8 +109,16 @@ def get_ac_current():
     CURRENT_SENSOR.read_u16() returns 0-65535 (12bit converted to 16bit)
     This function returns a value between 0 and 15
     """
-    ac_current = (CURRENT_SENSOR.read_u16() / 65535) * 15
-    return round(ac_current)
+    # Quick sampling over 40ms (~2 cycles at 50/60Hz) to find peak
+    start = time.ticks_ms()
+    max_val = 0
+    while time.ticks_diff(time.ticks_ms(), start) < 40:
+        val = CURRENT_SENSOR.read_u16()
+        if val > max_val:
+            max_val = val
+    # Convert raw ADC peak to approximate AC RMS amps
+    amps = (max_val / 65535) * 15
+    return round(amps, 2)
 
 
 def get_ac_power():
@@ -107,16 +129,6 @@ def get_ac_power():
 def get_pump_state():
     print("TODO!")
     return 0
-
-
-async def check_networking(wlan):
-    while True:
-        connected = wlan.isconnected()
-        print(f"{time.time()} Network Check: {wlan}")
-        if not connected:
-            wlan = network_connect()
-        gc.collect()
-        await asyncio.sleep(300)
 
 
 async def ok_blink():
@@ -143,22 +155,22 @@ async def metrics(request):
     if not current_metrics:
         return Response("", status_code=204)
     payload = METRICS_TEMPLATE.format(**current_metrics)
-    mode = request.args["mode"]
+    mode = request.args.get("mode")
     if mode == "heartbeat":
         STATE["last_scraped_metrics"] = current_metrics
         return Response(payload, headers={'Content-Type': 'text/plain; version=0.0.4'})
-    if FIXME-sendsor-is-firing:
-        FIXME
+    #if FIXME-sendsor-is-firing:
+    #    FIXME
     else:
         return Response("", status_code=204)
 
+
 async def main():
-    asyncio.create_task(check_networking(wlan))
+    asyncio.create_task(configure_networking())
     asyncio.create_task(ok_blink())
     asyncio.create_task(poll_metrics())
     await app.start_server(host='0.0.0.0', port=80)
 
 
 if __name__ == "__main__":
-    wlan = network_connect()
     asyncio.run(main())
