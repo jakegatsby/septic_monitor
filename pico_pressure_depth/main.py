@@ -2,7 +2,7 @@ import asyncio
 import gc
 import json
 import time
-
+import usocket as socket
 import network
 import machine
 
@@ -76,38 +76,23 @@ async def error_blink():
 async def configure_networking():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
-
+    wlan.connect(CONFIG["network"]["ssid"], CONFIG["network"]["password"])
+    while not wlan.isconnected():
+        syslog("Connecting to WLAN")
+        error_blink()
+        time.sleep(1)
+    ifconfig = wlan.ifconfig()
     ip = CONFIG["network"]["ip"]
-    subnet = CONFIG["network"].get("subnet", "255.255.255.0")
-    gateway = CONFIG["network"].get("gateway", "192.168.1.1")
-    dns = CONFIG["network"].get("dns", "192.168.1.1")
+    wlan.ifconfig((ip, ifconfig[1], ifconfig[2], ifconfig[3]))
+    wlan.config(pm=0xa11140)
+    syslog(f"IP set to {ip}")
 
     while True:
-        for attempt in range(20):
-            syslog("Connecting to Wi-Fi...")
-                        if wlan.isconnected():
-                syslog(f"Connected! IP set to {wlan.ifconfig()[0]}")
-                break
-
-            try:
-                # Disable Wi-Fi power-saving mode to prevent dropped packets / high latency
-                wlan.config(pm=0xa11140)
-                wlan.ifconfig((ip, subnet, gateway, dns))
-                wlan.connect(CONFIG["network"]["ssid"], CONFIG["network"]["password"])
-
-
-                    blink()
-                    await asyncio.sleep(0.5)
-                else:
-                    syslog("Wi-Fi connection attempt timed out.")
-                    await error_blink()
-
-            except Exception as e:
-                syslog(f"Wi-Fi Error: {e}")
-                await error_blink()
-
-        STATE["wlan_is_connected"] = True
-        await asyncio.sleep(15)
+        connected = wlan.isconnected()
+        syslog(f"{time.time()} Network Check: {wlan}")
+        if not connected:
+            wlan = network_connect()
+        await asyncio.sleep(300)
 
 
 def get_temperature():
