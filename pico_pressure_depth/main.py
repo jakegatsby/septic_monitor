@@ -1,11 +1,12 @@
 import asyncio
+import gc
 import json
 import time
 
 import network
 import machine
 
-from microdot import Microdot
+from microdot import Microdot, Response
 
 app = Microdot()
 
@@ -30,15 +31,25 @@ sepmon_pressure_depth {depth}
 sepmon_pressure_sensor_temperature {temperature}
 """
 
+SYSLOG_SOCK = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+SYSLOG_TAG = "pico-pressure-depth"
 
 with open("config") as f:
     CONFIG = json.load(f)
 
+def syslog(message, severity=6, facility=16):
+    """
+    Sends an RFC 3164 compliant Syslog UDP message.
+    Severity: 3=Error, 4=Warning, 6=Info, 7=Debug
+    """
+    pri = (facility * 8) + severity
+    # Format: <PRI>TAG: MESSAGE
+    packet = f"<{pri}>{CONFIG['network']['ip']} {SYSLOG_TAG}: {message}"
 
-@app.after_request
-async def cleanup(request, response):
-    gc.collect()
-    return response
+    try:
+        SYSLOG_SOCK.sendto(packet.encode("utf-8"), (SYSLOG_IP, SYSLOG_PORT))
+    except Exception as e:
+        print(f"Failed to send syslog: {e}")
 
 
 def blink():
@@ -67,23 +78,22 @@ async def configure_networking():
     dns = CONFIG["network"].get("dns", "192.168.1.1")
 
     while True:
-        if not wlan.isconnected():
+        for attempt in range(20):
             print("Connecting to Wi-Fi...")
+                        if wlan.isconnected():
+                print(f"Connected! IP set to {wlan.ifconfig()[0]}")
+                break
+
             try:
                 # Disable Wi-Fi power-saving mode to prevent dropped packets / high latency
                 wlan.config(pm=0xa11140)
                 wlan.ifconfig((ip, subnet, gateway, dns))
                 wlan.connect(CONFIG["network"]["ssid"], CONFIG["network"]["password"])
 
-                # Connection attempt loop with 10-second timeout
-                for _ in range(20):
-                    if wlan.isconnected():
-                        print(f"Connected! IP set to {wlan.ifconfig()[0]}")
-                        break
+
                     blink()
                     await asyncio.sleep(0.5)
-
-                if not wlan.isconnected():
+                else:
                     print("Wi-Fi connection attempt timed out.")
                     await error_blink()
 
@@ -91,14 +101,13 @@ async def configure_networking():
                 print(f"Wi-Fi Error: {e}")
                 await error_blink()
 
-        # Poll Wi-Fi status every 15 seconds
+        STATE["wlan_is_connected"] = True
         await asyncio.sleep(15)
 
 
 def get_temperature():
     adc_value = TEMP_SENSOR.read_u16()
-    volt = (3.3 / 65535) * adc_value
-    return round(27 - (volt - 0.706) / 0.001721, 1)  # covert internal MCU temp to outside temp
+    return round(adc_value, 1)
 
 
 def get_pressure_depth():
@@ -112,10 +121,13 @@ def get_pressure_depth():
 
 async def poll_metrics():
     while True:
-        STATE["current_metrics"] = {
-            "depth": get_pressure_depth(),
-            "temperature": get_temperature()
-        }
+        try:
+            STATE["current_metrics"] = {
+                "depth": get_pressure_depth(),
+                "temperature": get_temperature()
+            }
+        except Exception as e:
+            STATE["current_metrics"] = {}
         gc.collect()
         await asyncio.sleep(10)
 
@@ -134,9 +146,8 @@ async def main():
     asyncio.create_task(configure_networking())
     asyncio.create_task(ok_blink())
     asyncio.create_task(poll_metrics())
-    await app.start_server(host='0.0.0.0', port=80)
+    await app.start_server(host='0.0.0.0', port=METRICS_PORT)
 
 
 if __name__ == "__main__":
-    wlan = network_connect()
     asyncio.run(main())

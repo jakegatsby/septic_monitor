@@ -47,12 +47,6 @@ with open("config") as f:
     CONFIG = json.load(f)
 
 
-@app.after_request
-async def cleanup(request, response):
-    gc.collect()
-    return response
-
-
 def blink():
     LED.value(not LED.value())
 

@@ -7,14 +7,6 @@ services:
     - "./prometheus.yml:/etc/prometheus/prometheus.yml"
     - "prometheus:/prometheus"
     restart: unless-stopped
-    depends_on:
-    - "pushgateway"
-
-  pushgateway:
-    image: "prom/pushgateway"
-    ports:
-    - "9091:9091"
-    restart: unless-stopped
 
   grafana:
     image: "grafana/grafana-oss"
@@ -26,6 +18,17 @@ services:
     - "3000:3000"
     depends_on:
     - "prometheus"
+
+  syslog-ng:
+    image: balabit/syslog-ng:latest
+    command: ["-F", "-e", "-d", "-v"]
+    container_name: syslog-ng
+    ports:
+    - "514:514/udp"
+    restart: unless-stopped
+    volumes:
+    - ./syslog-ng.conf:/etc/syslog-ng/syslog-ng.conf:ro
+    - ./syslog:/var/log/
 
   # pump_power:
   #   image: erniesprojects/sepmon
