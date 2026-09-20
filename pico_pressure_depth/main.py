@@ -31,11 +31,15 @@ sepmon_pressure_depth {depth}
 sepmon_pressure_sensor_temperature {temperature}
 """
 
-SYSLOG_SOCK = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-SYSLOG_TAG = "pico-pressure-depth"
 
 with open("config") as f:
     CONFIG = json.load(f)
+
+SYSLOG_IP = CONFIG["syslog"]["ip"]
+SYSLOG_PORT = CONFIG["syslog"]["port"]
+SYSLOG_SOCK = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+SYSLOG_TAG = "pico-pressure-depth"
+
 
 def syslog(message, severity=6, facility=16):
     """
@@ -46,6 +50,7 @@ def syslog(message, severity=6, facility=16):
     # Format: <PRI>TAG: MESSAGE
     packet = f"<{pri}>{CONFIG['network']['ip']} {SYSLOG_TAG}: {message}"
 
+    print(message)
     try:
         SYSLOG_SOCK.sendto(packet.encode("utf-8"), (SYSLOG_IP, SYSLOG_PORT))
     except Exception as e:
@@ -79,9 +84,9 @@ async def configure_networking():
 
     while True:
         for attempt in range(20):
-            print("Connecting to Wi-Fi...")
+            syslog("Connecting to Wi-Fi...")
                         if wlan.isconnected():
-                print(f"Connected! IP set to {wlan.ifconfig()[0]}")
+                syslog(f"Connected! IP set to {wlan.ifconfig()[0]}")
                 break
 
             try:
@@ -94,11 +99,11 @@ async def configure_networking():
                     blink()
                     await asyncio.sleep(0.5)
                 else:
-                    print("Wi-Fi connection attempt timed out.")
+                    syslog("Wi-Fi connection attempt timed out.")
                     await error_blink()
 
             except Exception as e:
-                print(f"Wi-Fi Error: {e}")
+                syslog(f"Wi-Fi Error: {e}")
                 await error_blink()
 
         STATE["wlan_is_connected"] = True
