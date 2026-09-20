@@ -21,7 +21,7 @@ services:
 
   syslog-ng:
     image: balabit/syslog-ng:latest
-    command: ["-F", "-e", "-d", "-v"]
+    # command: ["-F", "-e", "-d", "-v"]  debug logging
     container_name: syslog-ng
     ports:
     - "514:514/udp"
