@@ -51,6 +51,12 @@ def blink():
     LED.value(not LED.value())
 
 
+async def ok_blink():
+    while True:
+        blink()
+        await asyncio.sleep(2)
+
+
 async def error_blink():
     for _ in range(20):
         blink()
@@ -60,90 +66,39 @@ async def error_blink():
 async def configure_networking():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
-
+    wlan.connect(CONFIG["network"]["ssid"], CONFIG["network"]["password"])
+    while not wlan.isconnected():
+        syslog("Connecting to WLAN")
+        error_blink()
+        time.sleep(1)
+    ifconfig = wlan.ifconfig()
     ip = CONFIG["network"]["ip"]
-    subnet = CONFIG["network"].get("subnet", "255.255.255.0")
-    gateway = CONFIG["network"].get("gateway", "192.168.1.1")
-    dns = CONFIG["network"].get("dns", "192.168.1.1")
+    wlan.ifconfig((ip, ifconfig[1], ifconfig[2], ifconfig[3]))
+    wlan.config(pm=0xa11140)
+    syslog(f"IP set to {ip}")
 
     while True:
-        if not wlan.isconnected():
-            print("Connecting to Wi-Fi...")
-            try:
-                # Disable Wi-Fi power-saving mode to prevent dropped packets / high latency
-                wlan.config(pm=0xa11140)
-                wlan.ifconfig((ip, subnet, gateway, dns))
-                wlan.connect(CONFIG["network"]["ssid"], CONFIG["network"]["password"])
-
-                # Connection attempt loop with 10-second timeout
-                for _ in range(20):
-                    if wlan.isconnected():
-                        print(f"Connected! IP set to {wlan.ifconfig()[0]}")
-                        break
-                    blink()
-                    await asyncio.sleep(0.5)
-
-                if not wlan.isconnected():
-                    print("Wi-Fi connection attempt timed out.")
-                    await error_blink()
-
-            except Exception as e:
-                print(f"Wi-Fi Error: {e}")
-                await error_blink()
-
-        # Poll Wi-Fi status every 15 seconds
-        await asyncio.sleep(15)
+        connected = wlan.isconnected()
+        syslog(f"{time.time()} Network Check: {wlan}")
+        if not connected:
+            wlan = network_connect()
+        await asyncio.sleep(300)
 
 
 def get_temperature():
     adc_value = TEMP_SENSOR.read_u16()
-    volt = (3.3 / 65535) * adc_value
-    return round(27 - (volt - 0.706) / 0.001721, 1)  # covert internal MCU temp to outside temp
+    return round(adc_value, 1)
 
 
 def get_ac_current():
-    """
-    Samples over 40ms (~2 full cycles at 50Hz/60Hz).
-    Assumes a 1.65V DC offset bias (mid-point = 32768 on 16-bit scale).
-    """
-    start = time.ticks_ms()
-    max_diff = 0
-    baseline = 32768  # Midpoint DC offset for biased AC current transducers
-
-    while time.ticks_diff(time.ticks_ms(), start) < 40:
-        val = CURRENT_SENSOR.read_u16()
-        diff = abs(val - baseline)
-        if diff > max_diff:
-            max_diff = diff
-
-    # Scale peak displacement to Amps, then convert Peak to RMS (RMS = Peak / sqrt(2))
-    peak_amps = (max_diff / 32768) * 15
-    rms_amps = peak_amps / math.sqrt(2)
-
-    # Noise gate: filter out trace ADC fluctuations at zero load
-    if rms_amps < 0.1:
-        rms_amps = 0.0
-
-    return round(rms_amps, 2)
-
+    print("TODO")
 
 def get_ac_power():
-    # Power = V_rms * I_rms (Assuming 120V AC nominal for this metric)
-    current = STATE["current_metrics"].get("pump_ac_current", 0)
-    voltage = CONFIG.get("ac_voltage", 120)
-    return round(current * voltage, 1)
-
+    print("TODO")
 
 def get_pump_state():
-    # 1 if pump is pulling current above threshold, 0 if off
-    current = STATE["current_metrics"].get("pump_ac_current", 0)
-    return 1 if current > 0.5 else 0
+    print("TODO")
 
-
-async def ok_blink():
-    while True:
-        blink()
-        await asyncio.sleep(2)
 
 
 async def poll_metrics():
@@ -168,9 +123,10 @@ async def metrics(request):
     if not current_metrics:
         return Response("Metrics Not Ready", status_code=503)
 
+    # FIXME - determine if pump on, if request is heartbeat, etc
+
     payload = METRICS_TEMPLATE.format(**current_metrics)
     STATE["last_scraped_metrics"] = current_metrics
-
     return Response(
         payload,
         headers={'Content-Type': 'text/plain; version=0.0.4'}

@@ -50,7 +50,6 @@ def syslog(message, severity=6, facility=16):
     # Format: <PRI>TAG: MESSAGE
     packet = f"<{pri}>{CONFIG['network']['ip']} {SYSLOG_TAG}: {message}"
 
-    print(message)
     try:
         SYSLOG_SOCK.sendto(packet.encode("utf-8"), (SYSLOG_IP, SYSLOG_PORT))
     except Exception as e:
