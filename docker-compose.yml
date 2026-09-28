@@ -20,15 +20,19 @@ services:
     - "prometheus"
 
   syslog-ng:
-    image: balabit/syslog-ng:latest
-    # command: ["-F", "-e", "-d", "-v"]  debug logging
+    image: lscr.io/linuxserver/syslog-ng:latest
     container_name: syslog-ng
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Winnipeg
     ports:
-    - "514:514/udp"
+      - "514:514/udp"
     restart: unless-stopped
     volumes:
-    - ./syslog-ng.conf:/etc/syslog-ng/syslog-ng.conf:ro
-    - ./syslog:/var/log/
+      - ./syslog-ng.conf:/config/syslog-ng.conf:ro
+      - ./syslog:/config/log/
+
 
   # pump_power:
   #   image: erniesprojects/sepmon

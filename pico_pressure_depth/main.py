@@ -73,25 +73,29 @@ async def error_blink():
 
 
 async def configure_networking():
-    wlan = network.WLAN(network.STA_IF)
-    wlan.active(True)
-    wlan.connect(CONFIG["network"]["ssid"], CONFIG["network"]["password"])
-    while not wlan.isconnected():
-        syslog("Connecting to WLAN")
-        error_blink()
-        time.sleep(1)
-    ifconfig = wlan.ifconfig()
-    ip = CONFIG["network"]["ip"]
-    wlan.ifconfig((ip, ifconfig[1], ifconfig[2], ifconfig[3]))
-    wlan.config(pm=0xa11140)
-    syslog(f"IP set to {ip}")
-
+    init = True
     while True:
-        connected = wlan.isconnected()
-        syslog(f"{time.time()} Network Check: {wlan}")
-        if not connected:
-            wlan = network_connect()
-        await asyncio.sleep(300)
+        if init:
+            syslog(f"Initializing Networking")
+            wlan = network.WLAN(network.STA_IF)
+            wlan.active(True)
+            wlan.connect(CONFIG["network"]["ssid"], CONFIG["network"]["password"])
+            while not wlan.isconnected():
+                syslog("Connecting to WLAN")
+                error_blink()
+                time.sleep(1)
+            ifconfig = wlan.ifconfig()
+            ip = CONFIG["network"]["ip"]
+            wlan.ifconfig((ip, ifconfig[1], ifconfig[2], ifconfig[3]))
+            wlan.config(pm=0xa11140)
+            syslog(f"IP set to {ip}")
+
+        if wlan.isconnected():
+            await asyncio.sleep(300)
+
+        init = False if wlan.isconnected() else True
+
+
 
 
 def get_temperature():
