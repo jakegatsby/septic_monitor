@@ -2,14 +2,16 @@ SHELL := /bin/bash
 MAKEFLAPGS += --always-make
 
 PICO_PRESSURE_IP=$(shell jq -r .network.ip pico_pressure_depth/config)
+PICO_PRESSURE_SYSLOG_IP=$(shell jq -r .syslog.ip pico_pressure_depth/config)
 PICO_PUMP_METRICS_IP=$(shell jq -r .network.ip pico_pump_metrics/config)
 
 help:
 	@echo
 	@echo "                   SEPMON"
 	@echo
-	@echo "Pico Pressure Sensor IP: $(PICO_PRESSURE_IP)"
-	@echo "Pico Pump Metrics IP:    $(PICO_PUMP_METRICS_IP)"
+	@echo "Pico Pressure Sensor IP:        $(PICO_PRESSURE_IP)"
+	@echo "Pico Pressure Sensor Syslog IP: $(PICO_PRESSURE_SYSLOG_IP)"
+	@echo "Pico Pump Metrics IP:           $(PICO_PUMP_METRICS_IP)"
 	@echo
 	@echo init
 	@echo thonny
