@@ -30,9 +30,8 @@ services:
       - "514:514/udp"
     restart: unless-stopped
     volumes:
-      - ./syslog-ng.conf:/config/syslog-ng.conf:ro
-      - ./syslog:/config/log/
-
+      - ./syslog-ng.conf:/config/syslog-ng.conf
+      - ./syslog:/var/log/
 
   # pump_power:
   #   image: erniesprojects/sepmon
