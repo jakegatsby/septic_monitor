@@ -119,6 +119,8 @@ async def poll_metrics():
 
 @app.route("/metrics")
 async def metrics(request):
+    client_ip, client_port = request.client_addr
+    syslog(f"Got /metrics request from {client_ip}")
     current_metrics = STATE.get("current_metrics")
     if not current_metrics:
         return Response("Metrics Not Ready", status_code=503)
