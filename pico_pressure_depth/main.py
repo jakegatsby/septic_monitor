@@ -91,6 +91,7 @@ async def configure_networking():
             syslog(f"IP set to {ip}")
 
         if wlan.isconnected():
+            syslog("Networking is connected")
             await asyncio.sleep(300)
 
         init = False if wlan.isconnected() else True
