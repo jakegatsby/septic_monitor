@@ -97,11 +97,9 @@ async def configure_networking():
         init = False if wlan.isconnected() else True
 
 
-
-
 def get_temperature():
-    adc_value = TEMP_SENSOR.read_u16()
-    return round(adc_value, 1)
+    temperature_c = 27 - (TEMP_SENSOR.read_u16() - 0.706) / 0.001721
+    return round(temperature_c, 1)
 
 
 def get_pressure_depth():
