@@ -20,17 +20,12 @@ services:
     - "prometheus"
 
   syslog-ng:
-    image: lscr.io/linuxserver/syslog-ng:latest
-    container_name: syslog-ng
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=America/Winnipeg
+    image: ghcr.io/axoflow/axosyslog:latest
+    restart: unless-stopped
     ports:
       - "514:514/udp"
-    restart: unless-stopped
     volumes:
-      - ./syslog-ng.conf:/config/syslog-ng.conf
+      - ./syslog-ng.conf:/etc/syslog-ng/syslog-ng.conf
       - ./syslog:/var/log/
 
   # pump_power:
