@@ -91,14 +91,16 @@ async def configure_networking():
             syslog(f"IP set to {ip}")
 
         if wlan.isconnected():
-            syslog("Networking is connected")
+            syslog(f"Networking is connected.  Chip tempurature is {get_temperature()} °C.")
             await asyncio.sleep(300)
 
         init = False if wlan.isconnected() else True
 
 
 def get_temperature():
-    temperature_c = 27 - (TEMP_SENSOR.read_u16() - 0.706) / 0.001721
+    conversion_factor = 3.3 / 65535
+    reading = sensor_temp.read_u16() * conversion_factor
+    temperature = 27 - (reading - 0.706) / 0.001721
     return round(temperature_c, 1)
 
 
