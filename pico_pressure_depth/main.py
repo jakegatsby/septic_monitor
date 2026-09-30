@@ -99,9 +99,9 @@ async def configure_networking():
 
 def get_temperature():
     conversion_factor = 3.3 / 65535
-    reading = sensor_temp.read_u16() * conversion_factor
+    reading = TEMP_SENSOR.read_u16() * conversion_factor
     temperature = 27 - (reading - 0.706) / 0.001721
-    return round(temperature_c, 1)
+    return round(temperature, 1)
 
 
 def get_pressure_depth():

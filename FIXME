@@ -1,0 +1,25 @@
+cd ~
+rm -rf pico-recovery
+mkdir pico-recovery
+cd pico-recovery
+
+# 3. Clone BOTH the Pico SDK and Picotool
+git clone --depth 1 https://github.com/raspberrypi/pico-sdk.git
+git clone --depth 1 https://github.com/raspberrypi/picotool.git
+
+# 4. Set the PICO_SDK_PATH environment variable
+export PICO_SDK_PATH=$HOME/pico-recovery/pico-sdk
+
+# 5. Build picotool
+cd picotool
+mkdir build
+cd build
+cmake ..
+make -j$(nproc)
+
+# 6. Download flash_nuke.uf2
+cd ~/pico-recovery
+wget https://datasheets.raspberrypi.com/soft/flash_nuke.uf2
+
+sudo ./picotool/build/picotool load -x flash_nuke.uf2
+

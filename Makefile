@@ -149,11 +149,11 @@ flash-pico-microdot:
 
 
 flash-pico-pressure-depth:
-	sh -c 'trap "" INT; rshell cp ./pico_pressure_depth/{main.py,config} /pyboard/ && rshell "repl ~ import machine ~ machine.soft_reset() ~"'
+	bash -c 'trap "" SIGINT; rshell cp ./pico_pressure_depth/{main.py,config} /pyboard/ && rshell "repl ~ import machine ~ machine.soft_reset() ~"'
 
 
 flash-pico-pump-metrics:
-	sh -c 'trap "" INT; rshell cp ./pico_pump_metrics/{main.py,config} /pyboard/ && rshell "repl ~ import machine ~ machine.soft_reset() ~"'
+	bash -c 'trap "" SIGINT; rshell cp ./pico_pump_metrics/{main.py,config} /pyboard/ && rshell "repl ~ import machine ~ machine.soft_reset() ~"'
 
 
 get-pico-pressure-depth:
