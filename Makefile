@@ -144,12 +144,15 @@ rshell: pipx
 	pipx upgrade rshell || pipx install rshell
 
 
+get-micropython:
+	wget -O pico2w.uf2 https://micropython.org/resources/firmware/RPI_PICO2_W-20260824-v1.29.0.uf2
+
+
 flash-pico-micropython:
 ifndef path
 	$(error path=<path> required, eg: path=/media/pi/RP2350)
 endif
 	trap '' SIGINT
-	wget -O pico2w.uf2 https://micropython.org/resources/firmware/RPI_PICO2_W-20260824-v1.29.0.uf2
 	cp pico2w.uf2 $(path)
 	sync
 	sleep 10
