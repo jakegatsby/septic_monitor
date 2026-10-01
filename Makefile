@@ -1,5 +1,6 @@
 SHELL := /bin/bash
 MAKEFLAPGS += --always-make
+.ONESHELL:
 
 PICO_PRESSURE_IP=$(shell jq -r .network.ip pico_pressure_depth/config)
 PICO_PRESSURE_SYSLOG_IP=$(shell jq -r .syslog.ip pico_pressure_depth/config)
@@ -144,16 +145,21 @@ rshell: pipx
 
 
 flash-pico-microdot:
+	trap '' SIGINT
 	rshell cp ./microdot.py /pyboard/
 	rshell "repl ~ import machine ~ machine.soft_reset() ~"
 
 
 flash-pico-pressure-depth:
-	bash -c 'trap "" SIGINT; rshell cp ./pico_pressure_depth/{main.py,config} /pyboard/ && rshell "repl ~ import machine ~ machine.soft_reset() ~"'
+	trap '' SIGINT
+	rshell cp ./pico_pressure_depth/{main.py,config} /pyboard/
+	rshell "repl ~ import machine ~ machine.soft_reset() ~"
 
 
 flash-pico-pump-metrics:
-	bash -c 'trap "" SIGINT; rshell cp ./pico_pump_metrics/{main.py,config} /pyboard/ && rshell "repl ~ import machine ~ machine.soft_reset() ~"'
+	trap '' SIGINT
+	rshell cp ./pico_pump_metrics/{main.py,config} /pyboard/
+	rshell "repl ~ import machine ~ machine.soft_reset() ~"
 
 
 get-pico-pressure-depth:
