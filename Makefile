@@ -152,6 +152,9 @@ endif
 	wget -O pico2w.uf2 https://micropython.org/resources/firmware/RPI_PICO2_W-20260824-v1.29.0.uf2
 	cp pico2w.uf2 $(path)
 	sync
+	sleep 10
+	ls -l /dev/ttyACM0
+
 
 flash-pico-microdot:
 	trap '' SIGINT
