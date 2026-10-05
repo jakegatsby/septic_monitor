@@ -148,6 +148,10 @@ get-micropython:
 	wget -O pico2w.uf2 https://micropython.org/resources/firmware/RPI_PICO2_W-20260824-v1.29.0.uf2
 
 
+get-ssd1306:
+	wget -O ssd1306.py https://raw.githubusercontent.com/micropython/micropython-lib/refs/heads/master/micropython/drivers/display/ssd1306/ssd1306.py
+
+
 flash-pico-micropython:
 ifndef path
 	$(error path=<path> required, eg: path=/media/pi/RP2350)
@@ -167,12 +171,14 @@ flash-pico-microdot:
 
 flash-pico-pressure-depth:
 	trap '' SIGINT
+	rshell cp ./ssd1306.py /pyboard/
 	rshell cp ./pico_pressure_depth/{main.py,config} /pyboard/
 	rshell "repl ~ import machine ~ machine.soft_reset() ~"
 
 
 flash-pico-pump-metrics:
 	trap '' SIGINT
+	rshell cp ./ssd1306.py /pyboard/
 	rshell cp ./pico_pump_metrics/{main.py,config} /pyboard/
 	rshell "repl ~ import machine ~ machine.soft_reset() ~"
 
