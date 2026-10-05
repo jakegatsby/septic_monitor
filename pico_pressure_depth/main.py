@@ -33,6 +33,7 @@ try:
     i2c = machine.I2C(1, scl=machine.Pin(3), sda=machine.Pin(2), freq=400000)
     OLED = ssd1306.SSD1306_I2C(128, 64, i2c)
 except Exception as e:
+    print(f"Could not initialize OLED: {e}")
     OLED = False
 
 METRICS_TEMPLATE = """# HELP sepmon_pressure_depth Pressure sensor depth reading
@@ -185,7 +186,9 @@ async def metrics(request):
 
 async def main():
     if not OLED:
-        log("OLED is not available")
+        log("OLED could not be initialized")
+    else:
+        log("OLED successfully initialized")
     asyncio.create_task(configure_networking())
     asyncio.create_task(ok_blink())
     asyncio.create_task(poll_metrics())
