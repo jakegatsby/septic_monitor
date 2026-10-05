@@ -122,7 +122,8 @@ async def configure_networking():
             log(f"IP set to {ip}")
 
         if wlan.isconnected():
-            log(f"Networking is connected.  Chip tempurature is {get_temperature()} °C.")
+            log("Networking is connected")
+            log(f"Chip tempurature is {get_temperature()} °C.")
             await asyncio.sleep(300)
 
         init = False if wlan.isconnected() else True
@@ -155,10 +156,10 @@ def get_pressure_depth():
         OLED.show()
     if adc >= ALARM_LEVEL:
         ALARM_CONDITION.value(1)  # Set pin HIGH
-        log("Level over limit - ", ALARM_CONDITION.value())
+        log(f"Level over limit: {adc} >= {ALARM_LEVEL}")
     else:
         ALARM_CONDITION.value(0)  # Set or keep pin LOW
-        log("Level OK - ", ALARM_CONDITION.value())
+        log(f"Level OK: {round(adc, 1)} < {ALARM_LEVEL}")
     return round(adc, 1)
 
 
